@@ -4,4 +4,17 @@
 
 # moxbox
 
-I recently bought a new tiny PC (Lenovo M900 tiny) that I will be turning into a proxmox server to experiment with. I wanted to make something personal to run on it. So i decided to try to make a simple file hosting server that I could use to store and share files with friends and family.
+I recently bought a new tiny PC (Lenovo M900 tiny) that I will be turning into a proxmox server to experiment with. I wanted to make something personal to run on it.
+
+I’m building boxmox because I’m tired of running out of iCloud space and juggling messy Google Drive folders. I wanted something simple, personal, and fully under my control.
+
+Right now, BoxMox is nothing. Eventually, I want it to grow into a clean, minimal, self-hosted storage platform with optional user accounts, metadata, share links, and maybe even NAS or S3-style storage support.
+
+This is my way of learning backend development, exploring Proxmox, and building a tool I actually want to use every day. More features coming as I keep improving it.
+
+## Open Source & Contributions
+
+I’m more than happy for anyone to contribute, improve features, report issues, or build on top of it. Whether you're fixing a typo or adding a major feature, all contributions are welcome.
+
+
+
