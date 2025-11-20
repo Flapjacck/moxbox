@@ -1,1 +1,32 @@
 @import "tailwindcss";
+
+:root {
+    /* Site Color Scheme*/
+    --color-bg: #0D1117;
+    --color-accent: #3D7BF0;
+    --color-accent-2: #6BCB77;
+    --color-text-primary: #C9D1D9;
+    /* Font tokens */
+    --font-sans: "Space Grotesk", ui-sans-serif, system-ui, -apple-system,
+        "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* Use Space Grotesk globally */
+html,
+body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.space-grotesk-regular {
+    font-family: "Space Grotesk", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.space-grotesk-strong {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 600;
+}
