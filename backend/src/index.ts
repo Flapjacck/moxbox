@@ -12,6 +12,11 @@ app.use(express.json()); // JSON body parsing middleware
 // Mount API routes 
 app.use('/api', routes);
 
+// Root route — in case someone visits the server base URL
+app.get('/', (req, res) => {
+    res.json({ status: 'ok', message: 'Fileshare backend is running', api: '/api/' });
+});
+
 // Start the server
 const server = app.listen(config.port, () => {
     // eslint-disable-next-line no-console
