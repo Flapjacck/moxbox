@@ -2,6 +2,8 @@
 import express from 'express';
 import config from './config/env';
 import routes from './routes';
+import { NotFoundError } from './middleware/errors';
+import { errorHandler } from './middleware/errorHandler';
 
 // TODO: Add middleware for CORS, parsing, authentication and RBAC
 // e.g., app.use(cors()), app.use(express.json()) and custom `authenticate` middleware
@@ -12,16 +14,25 @@ app.use(express.json()); // JSON body parsing middleware
 // Mount API routes 
 app.use('/api', routes);
 
+// Handle Non existing API routes.
+app.use('/api', (_req, _res, next) => next(new NotFoundError('API route not found')));
+
 // Root route — in case someone visits the server base URL
 app.get('/', (req, res) => {
     res.json({ status: 'ok', message: 'Fileshare backend is running', api: '/api/' });
 });
+
+// Handle Non existing routes.
+app.use((_req, _res, next) => next(new NotFoundError('Route not found')));
 
 // Start the server
 const server = app.listen(config.port, () => {
     // eslint-disable-next-line no-console
     console.log(`Server listening on port ${config.port} — http://localhost:${config.port}/`);
 });
+
+// Register the global error handler *after* all routes and middleware
+app.use(errorHandler);
 
 // Graceful shutdown on signals
 const graceful = () => {
