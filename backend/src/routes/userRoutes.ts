@@ -1,0 +1,49 @@
+import express, { Request, Response, NextFunction } from 'express';
+
+const router = express.Router();
+
+/**
+ * @route   POST /api/users/login
+ * @desc    Authenticate single user from env vars (single-user auth for now)
+ * @access  Public
+ * @todo    Implement single-user authentication using env variables (e.g. ADMIN_USERNAME, ADMIN_PASSWORD)
+ * @todo    Replace with DB-based user management later
+ */
+router.post('/login', (req: Request, res: Response, next: NextFunction) => {
+    // TODO: Parse credentials from body, validate against process.env values
+    // TODO: On success, sign and return a JWT access token
+    // TODO: On failure, return 401
+    res.status(501).json({ message: 'Not Implemented: login' });
+});
+
+/**
+ * @route   GET /api/users/me
+ * @desc    Return authenticated user
+ * @access  Private
+ * @todo    Implement authentication middleware that decodes/validates JWT
+ * @todo    For now, read user info from env vars and return
+ */
+router.get('/me', (req: Request, res: Response, next: NextFunction) => {
+    // TODO: Require and validate auth (e.g., middleware verifyToken)
+    // TODO: Return a simplified user object derived from env variables
+    res.status(501).json({ message: 'Not Implemented: me (get current user)' });
+});
+
+/**
+ * @route   POST /api/users/logout
+ * @desc    Logout route (client-only invalidation for JWT by default)
+ * @access  Private
+ * @todo    Provide soft logout flow (e.g. token blacklist or client token deletion)
+ */
+router.post('/logout', (req: Request, res: Response, next: NextFunction) => {
+    // TODO: Optionally implement token revocation if you support blacklists
+    res.status(501).json({ message: 'Not Implemented: logout' });
+});
+
+/**
+ * RBAC (Role-based access control) notes for user routes
+ * @todo Implement a middleware (e.g., `authorize(role)`) that checks `req.user.role`
+ * @todo For single-user mode, consider setting a role via env var (e.g., ADMIN_ROLE)
+ */
+
+export default router;
