@@ -26,9 +26,8 @@ app.get('/', (req, res) => {
 app.use((_req, _res, next) => next(new NotFoundError('Route not found')));
 
 // Start the server
-const server = app.listen(config.port, () => {
-    // eslint-disable-next-line no-console
-    console.log(`Server listening on port ${config.port} — http://localhost:${config.port}/`);
+const server = app.listen(config.port, config.host, () => {
+    console.log(`Server listening on ${config.host}:${config.port} — http://${config.host}:${config.port}/`);
 });
 
 // Register the global error handler *after* all routes and middleware
