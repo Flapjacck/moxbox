@@ -8,8 +8,8 @@ function App() {
       <Routes>
         <Route path="/login" element={<AuthPage />} />
         <Route path="/files" element={<FileDashboard />} />
-        <Route path="/" element={<Navigate to="/files" replace />} />
-        <Route path="*" element={<Navigate to="/files" replace />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );
