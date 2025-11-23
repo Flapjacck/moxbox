@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { LoginForm } from "../features/auth/components/LoginForm";
+import BoxmoxLogo from "../assets/boxmox.svg";
 
 /**
  * Auth Page
@@ -70,10 +71,16 @@ export const AuthPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
+          {/* Display the Boxmox SVG logo from assets */}
+          <img
+            src={BoxmoxLogo}
+            alt="Boxmox logo"
+            className="mx-auto mb-4 w-20 h-20"
+          />
+
           <h1 className="text-4xl font-bold text-[#C9D1D9] mb-2">
             Mox<span className="text-[#3D7BF0]">Box</span>
           </h1>
-          <p className="text-[#8B949E]">Personal File Hosting</p>
         </motion.div>
 
         {/* Login form component */}
