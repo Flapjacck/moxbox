@@ -1,6 +1,6 @@
-# Boxmox Frontend
+# MoxBox Frontend
 
-This is the frontend for Boxmox, a personal file hosting server. It is built with React and Vite.
+This is the frontend for MoxBox, a personal file hosting server. It is built with React and Vite.
 
 ## Theme
 
