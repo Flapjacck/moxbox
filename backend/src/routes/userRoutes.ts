@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import asyncHandler from '../middleware/asyncHandler';
-import { loginUser } from '../controllers/userController';
+import authenticate from '../middleware/authenticate';
+import { loginUser, getCurrentUser } from '../controllers';
 
 const router = express.Router();
 
@@ -20,11 +21,7 @@ router.post('/login', asyncHandler(loginUser));
  * @todo    Implement authentication middleware that decodes/validates JWT
  * @todo    For now, read user info from env vars and return
  */
-router.get('/me', (req: Request, res: Response, next: NextFunction) => {
-    // TODO: Require and validate auth (e.g., middleware verifyToken)
-    // TODO: Return a simplified user object derived from env variables
-    res.status(501).json({ message: 'Not Implemented: me (get current user)' });
-});
+router.get('/me', authenticate, asyncHandler(getCurrentUser));
 
 /**
  * @route   POST /api/users/logout
