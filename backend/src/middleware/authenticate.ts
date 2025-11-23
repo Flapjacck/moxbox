@@ -29,8 +29,7 @@ export default function authenticate(req: Request, _res: Response, next: NextFun
         throw new AuthenticationError((err as Error).message || 'Invalid token');
     }
 
-    // Attach user claims to request for downstream use
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (req as any).user = payload;
+    // Attach user claims to request for downstream use..
+    req.user = payload;
     next();
 }
