@@ -84,3 +84,36 @@ export async function getCurrentUser(req: Request, res: Response) {
     return res.status(200).json({ user });
 }
 
+/**
+ * POST /api/users/logout
+ * Stateless logout endpoint.
+ *
+ * This route performs a client-directed logout for stateless JWT-based
+ * authentication: the server doesn't track issued tokens and therefore
+ * cannot revoke them. Instead, it instructs clients to remove their
+ * locally stored access tokens.
+ *
+ * Access: Protected (requires `authenticate` middleware that verifies the
+ *         token before reaching this controller).  This means the JWT used
+ *         to call this route must be valid at the time of logout.
+ *
+ * Response: 204 No Content on success.
+ */
+export async function logoutUser(_req: Request, res: Response) {
+
+    // Attempt to clear a cookie called 'token' if one was used in the app.
+    // This is safe to call even if cookies are not used — Express will
+    // simply set a header that expires a non-existent cookie.
+    try {
+        res.clearCookie('token');
+    } catch (err) {
+        // Noop: clearing a cookie is a best-effort operation. If cookies are
+        // not configured, this does not constitute an error for logout.
+    }
+
+    // Instruct clients to remove their locally stored token(s). Return
+    // 204 No Content to indicate the user is logged out and there's no
+    // additional payload needed.
+    return res.status(204).send();
+}
+

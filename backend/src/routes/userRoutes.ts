@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import asyncHandler from '../middleware/asyncHandler';
 import authenticate from '../middleware/authenticate';
-import { loginUser, getCurrentUser } from '../controllers';
+import { loginUser, getCurrentUser, logoutUser } from '../controllers';
 
 const router = express.Router();
 
@@ -25,14 +25,14 @@ router.get('/me', authenticate, asyncHandler(getCurrentUser));
 
 /**
  * @route   POST /api/users/logout
- * @desc    Logout route (client-only invalidation for JWT by default)
+ * @desc    Stateless logout route. Instructs the client to delete any stored
+ *          access token (client-side) and attempts to clear a cookie named
+ *          `token` if present
  * @access  Private
- * @todo    Provide soft logout flow (e.g. token blacklist or client token deletion)
+ * @todo    Implement token revocation or other server-side logout flow if
+ *          immediate invalidation is required.
  */
-router.post('/logout', (req: Request, res: Response, next: NextFunction) => {
-    // TODO: Optionally implement token revocation if you support blacklists
-    res.status(501).json({ message: 'Not Implemented: logout' });
-});
+router.post('/logout', authenticate, asyncHandler(logoutUser));
 
 /**
  * RBAC (Role-based access control) notes for user routes
