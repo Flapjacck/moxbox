@@ -61,3 +61,26 @@ export async function loginUser(req: Request, res: Response) {
     res.status(200).json({ token, user: { id: userClaim.id, username: userClaim.username, role: userClaim.role } });
 }
 
+/**
+ * GET /api/users/me
+ * Return information about the currently authenticated user.
+ * For the single-user mode this returns a simplified user object derived
+ * from either the verified token (attached by middleware) or the configured
+ * environment variables (fallback).
+ */
+export async function getCurrentUser(req: Request, res: Response) {
+    // The `authenticate` middleware attaches a `user` claim to the request.
+    // Use a typed cast; fallback to configured admin user when claims are absent.
+    const maybeUser = (req as any).user as UserClaim | undefined;
+
+    if (!maybeUser) {
+        // If there's no user attached, provide a minimal fallback from env config.
+        const fallback = { id: config.adminUser, username: config.adminUser, role: 'admin' };
+        return res.status(200).json({ user: fallback });
+    }
+
+    // Return a simplified user object (avoid leaking sensitive info)
+    const user = { id: maybeUser.id, username: maybeUser.username, role: maybeUser.role };
+    return res.status(200).json({ user });
+}
+
