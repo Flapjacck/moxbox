@@ -5,6 +5,7 @@ import config from '../config/env';
 import { signToken } from '../utils/token';
 import type { UserClaim } from '../types/auth';
 import { AuthenticationError, ValidationError } from '../middleware/errors';
+import { info } from '../utils/logger';
 
 // Controller: User
 // -----------------
@@ -59,6 +60,8 @@ export async function loginUser(req: Request, res: Response) {
 
     // Return token and minimal user info (do not return password/hash)
     res.status(200).json({ token, user: { id: userClaim.id, username: userClaim.username, role: userClaim.role } });
+    // Inform the server log that a login occurred (without revealing credentials)
+    try { info('User logged in', { username: userClaim.username }); } catch { /* no-op */ }
 }
 
 /**
@@ -81,6 +84,7 @@ export async function getCurrentUser(req: Request, res: Response) {
 
     // Return a simplified user object (avoid leaking sensitive info)
     const user = { id: maybeUser.id, username: maybeUser.username, role: maybeUser.role };
+    info('Return current user', { username: user.username });
     return res.status(200).json({ user });
 }
 
@@ -114,6 +118,7 @@ export async function logoutUser(_req: Request, res: Response) {
     // Instruct clients to remove their locally stored token(s). Return
     // 204 No Content to indicate the user is logged out and there's no
     // additional payload needed.
+    try { info('User logged out'); } catch { }
     return res.status(204).send();
 }
 

@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from './errors';
+import { error as logError } from '../utils/logger';
 
 /**
  * Centralized error-handling middleware
@@ -65,6 +66,16 @@ export const errorHandler = (
     // Include stack trace in non-production environments to help debugging
     if (process.env.NODE_ENV !== 'production') {
         responseBody.stack = (err instanceof Error && err.stack) || undefined;
+    }
+
+    // Log the error for server-side debugging. Include method + path and
+    // additional properties where available.
+    try {
+        logError('Handler caught error', { method: req.method, path: req.originalUrl, statusCode, code, message, details, stack: (err instanceof Error && err.stack) });
+    } catch (e) {
+        // The logger should never crash the server — swallow exceptions from the logger.
+        // eslint-disable-next-line no-console
+        console.error('Logger failed while recording an error', e);
     }
 
     // Set content type explicitly and send JSON

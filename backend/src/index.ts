@@ -4,12 +4,15 @@ import config from './config/env';
 import routes from './routes';
 import { NotFoundError } from './middleware/errors';
 import { errorHandler } from './middleware/errorHandler';
+import { requestLogger, info } from './utils/logger';
 
 // TODO: Add middleware for CORS, parsing, authentication and RBAC
 // e.g., app.use(cors()), app.use(express.json()) and custom `authenticate` middleware
 
 const app = express();
 app.use(express.json()); // JSON body parsing middleware
+// Log incoming requests and their outcome
+app.use(requestLogger);
 
 // Mount API routes 
 app.use('/api', routes);
@@ -27,7 +30,7 @@ app.use((_req, _res, next) => next(new NotFoundError('Route not found')));
 
 // Start the server
 const server = app.listen(config.port, config.host, () => {
-    console.log(`Server listening on ${config.host}:${config.port} — http://${config.host}:${config.port}/`);
+    info(`Server listening on ${config.host}:${config.port} — http://${config.host}:${config.port}/`);
 });
 
 // Register the global error handler *after* all routes and middleware
@@ -36,8 +39,7 @@ app.use(errorHandler);
 // Graceful shutdown on signals
 const graceful = () => {
     server.close(() => {
-        // eslint-disable-next-line no-console
-        console.log('Server closed');
+        info('Server closed');
         process.exit(0);
     });
 };
