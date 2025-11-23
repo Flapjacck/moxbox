@@ -93,7 +93,6 @@ export async function deleteFile(filename: string): Promise<void> {
 
     try {
         await fs.unlink(filePath);
-        logger.info(`File deleted successfully: ${filename}`);
     } catch (err) {
         logger.error(`Failed to delete file: ${filename}`, err);
         throw new FileStorageError(`Failed to delete file: ${err instanceof Error ? err.message : 'Unknown error'}`);
