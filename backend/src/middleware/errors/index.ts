@@ -12,6 +12,10 @@ export { default as AuthorizationError } from './authorizationError';
 export { AuthorizationError as _AuthorizationError } from './authorizationError';
 export { default as NotFoundError } from './notFoundError';
 export { NotFoundError as _NotFoundError } from './notFoundError';
+export { default as FileStorageError } from './fileStorageError';
+export { FileStorageError as _FileStorageError } from './fileStorageError';
+export { default as FileNotFoundError } from './fileNotFoundError';
+export { FileNotFoundError as _FileNotFoundError } from './fileNotFoundError';
 
 // Local imports used to build a friendly default export object below.
 import AppError from './appError';
@@ -19,6 +23,8 @@ import ValidationError from './validationError';
 import AuthenticationError from './authenticationError';
 import AuthorizationError from './authorizationError';
 import NotFoundError from './notFoundError';
+import FileStorageError from './fileStorageError';
+import FileNotFoundError from './fileNotFoundError';
 
 export default {
     AppError,
@@ -26,4 +32,6 @@ export default {
     AuthenticationError,
     AuthorizationError,
     NotFoundError,
+    FileStorageError,
+    FileNotFoundError,
 };
