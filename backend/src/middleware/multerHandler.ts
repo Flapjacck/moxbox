@@ -65,10 +65,9 @@ const storage = multer.diskStorage({
         cb(null, FILES_DIR);
     },
     filename: (_req: Request, file: Express.Multer.File, cb) => {
-        // Generate a unique filename: timestamp-originalname
-        const uniqueSuffix = Date.now();
+        // Generate a filename: originalname (can change or add)
         const sanitizedName = file.originalname.replace(/\s+/g, '_');
-        cb(null, `${uniqueSuffix}-${sanitizedName}`);
+        cb(null, sanitizedName);
     },
 });
 
