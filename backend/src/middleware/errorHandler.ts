@@ -14,9 +14,12 @@ export const errorHandler = (
     err: unknown,
     req: Request,
     res: Response,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _next: NextFunction,
 ) => {
+    // Reference the `_next` parameter to avoid an `no-unused-vars` warning while
+    // preserving the Express error middleware signature. Using `void` keeps the
+    // reference side-effect free.
+    void _next;
     // Default values
     let statusCode = 500;
     let code = 'INTERNAL_ERROR';
@@ -74,8 +77,14 @@ export const errorHandler = (
         logError('Handler caught error', { method: req.method, path: req.originalUrl, statusCode, code, message, details, stack: (err instanceof Error && err.stack) });
     } catch (e) {
         // The logger should never crash the server — swallow exceptions from the logger.
-        // eslint-disable-next-line no-console
-        console.error('Logger failed while recording an error', e);
+        // Avoid `console` to adhere to linting rules — write directly to stderr
+        // as a minimal, reliable fallback that won't attempt to use the failing
+        // logger again.
+        try {
+            process.stderr.write(`Logger failed while recording an error: ${String(e)}\n`);
+        } catch {
+            // If even writing to stderr fails (very unlikely), there's nothing we can do.
+        }
     }
 
     // Set content type explicitly and send JSON
