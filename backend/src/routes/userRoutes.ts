@@ -1,4 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
+import asyncHandler from '../middleware/asyncHandler';
+import { loginUser } from '../controllers/userController';
 
 const router = express.Router();
 
@@ -9,12 +11,7 @@ const router = express.Router();
  * @todo    Implement single-user authentication using env variables (e.g. ADMIN_USERNAME, ADMIN_PASSWORD)
  * @todo    Replace with DB-based user management later
  */
-router.post('/login', (req: Request, res: Response, next: NextFunction) => {
-    // TODO: Parse credentials from body, validate against process.env values
-    // TODO: On success, sign and return a JWT access token
-    // TODO: On failure, return 401
-    res.status(501).json({ message: 'Not Implemented: login' });
-});
+router.post('/login', asyncHandler(loginUser));
 
 /**
  * @route   GET /api/users/me
