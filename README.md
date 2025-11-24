@@ -15,3 +15,25 @@ This is my way of learning backend development, exploring Proxmox, and building 
 ## Open Source & Contributions
 
 I’m more than happy for anyone to contribute, improve features, report issues, or build on top of it. Whether you're fixing a typo or adding a major feature, all contributions are welcome.
+
+## Running on Alpine Linux
+
+Dev mode:
+
+```sh
+chmod +x run-alpine.sh
+./run-alpine.sh --dev
+```
+
+Prod mode:
+
+```sh
+chmod +x run-alpine.sh
+./run-alpine.sh --build --password "your-secure-password"
+```
+
+custom ports:
+
+```sh
+./run-alpine.sh --dev --port 4200 --frontend-port 5173
+```
