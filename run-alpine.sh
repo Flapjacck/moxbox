@@ -118,8 +118,8 @@ print_info "Node version: $(node --version)"
 print_info "npm version: $(npm --version)"
 
 # Step 2: Install global npm tools
-print_info "Installing pnpm and bcryptjs globally..."
-npm install -g pnpm@latest bcryptjs || {
+print_info "Installing pnpm globally..."
+npm install -g pnpm@latest || {
     print_error "Failed to install global npm packages"
     exit 1
 }
@@ -162,7 +162,7 @@ fi
 
 print_info "Generating password hash..."
 cd "$SCRIPT_DIR/backend"
-ADMIN_PASSWORD_HASH=$(node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync(process.env.PW, 10));" PW="$ADMIN_PASSWORD")
+ADMIN_PASSWORD_HASH=$(node -e "const bcrypt = require('bcrypt'); console.log(bcrypt.hashSync(process.env.PW, 10));" PW="$ADMIN_PASSWORD")
 cd "$SCRIPT_DIR"
 
 if [ -z "$ADMIN_PASSWORD_HASH" ]; then
