@@ -22,9 +22,6 @@ export type FileType =
 interface FileCardProps {
   fileName: string;
   fileType?: FileType;
-  fileSize?: string;
-  uploadedAt?: string;
-  thumbnailUrl?: string;
   variant?: "list" | "grid";
   onDownload?: () => void;
   onDelete?: () => void;
@@ -39,26 +36,35 @@ interface FileCardProps {
 export const FileCard: FC<FileCardProps> = ({
   fileName,
   fileType = "other",
-  fileSize = "-",
-  uploadedAt = "-",
-  thumbnailUrl,
   variant = "list",
   // isFavorite removed per request - visual-only component
   onDownload,
   onDelete,
   className = "",
 }) => {
-  // Pick icon based on file type
+  // Derive file type from prop or filename extension
+  const inferFileType = (name: string): FileType => {
+    const ext = name.split('.').pop()?.toLowerCase() ?? '';
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) return 'image';
+    if (['mp4', 'mkv', 'mov', 'webm', 'avi'].includes(ext)) return 'video';
+    if (['mp3', 'wav', 'flac', 'aac', 'ogg'].includes(ext)) return 'audio';
+    if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv'].includes(ext)) return 'document';
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'archive';
+    return 'other';
+  };
+
+  const resolvedType = fileType ?? inferFileType(fileName);
+
   const Icon =
-    fileType === "image"
+    resolvedType === 'image'
       ? ImageIcon
-      : fileType === "video"
+      : resolvedType === 'video'
       ? Video
-      : fileType === "audio"
+      : resolvedType === 'audio'
       ? Music
-      : fileType === "document"
+      : resolvedType === 'document'
       ? FileText
-      : fileType === "archive"
+      : resolvedType === 'archive'
       ? Archive
       : File;
 
@@ -74,20 +80,13 @@ export const FileCard: FC<FileCardProps> = ({
       >
         <div className="w-full flex items-center justify-center">
           <div className="w-12 h-12 rounded-md bg-[#0F1724] flex items-center justify-center overflow-hidden">
-            {thumbnailUrl ? (
-              <img src={thumbnailUrl} alt={fileName} className="w-full h-full object-cover" />
-            ) : (
-              <Icon className="w-6 h-6 text-[#8B949E]" />
-            )}
+            <Icon className="w-6 h-6 text-[#8B949E]" />
           </div>
         </div>
 
         <div className="mt-3 flex-1 w-full text-center">
           <div className="font-semibold text-base truncate" title={fileName}>{fileName}</div>
-          <div className="text-sm text-[#8B949E] flex items-center justify-center gap-3 mt-1">
-            <span>{fileSize}</span>
-            <span>{uploadedAt}</span>
-          </div>
+          <div className="text-sm text-[#8B949E] mt-1">{/* metadata removed: size/upload date not provided by backend */}</div>
         </div>
         <div className="mt-2 flex items-center gap-2 justify-center">
           <div className="flex items-center gap-2">
@@ -111,21 +110,15 @@ export const FileCard: FC<FileCardProps> = ({
       transition={{ duration: 0.12 }}
     >
       <div className="w-14 h-14 flex items-center justify-center rounded-md bg-[#0F1724]">
-        {thumbnailUrl ? (
-          <img src={thumbnailUrl} alt={fileName} className="w-full h-full object-cover rounded-sm" />
-        ) : (
-          <Icon className="w-6 h-6 text-[#8B949E]" />
-        )}
+        <Icon className="w-6 h-6 text-[#8B949E]" />
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 justify-between">
           <div className="font-medium truncate" title={fileName}>{fileName}</div>
-          <div className="text-sm text-[#8B949E]">{fileSize}</div>
+          <div className="text-sm text-[#8B949E]">{/* size not available from backend */}</div>
         </div>
-        <div className="text-sm text-[#8B949E] mt-1 flex items-center gap-2">
-          <span className="truncate">{uploadedAt}</span>
-        </div>
+        <div className="text-sm text-[#8B949E] mt-1">{/* upload date not available from backend */}</div>
       </div>
 
       <div className="flex items-center gap-2">
