@@ -162,7 +162,7 @@ fi
 
 print_info "Generating password hash..."
 cd "$SCRIPT_DIR/backend"
-ADMIN_PASSWORD_HASH=$(node -e "const bcrypt = require('bcrypt'); console.log(bcrypt.hashSync(process.env.PW, 10));" PW="$ADMIN_PASSWORD")
+ADMIN_PASSWORD_HASH=$(node -e "const bcrypt = require('bcrypt'); const pw = process.argv[1]; console.log(bcrypt.hashSync(pw, 10));" "$ADMIN_PASSWORD")
 cd "$SCRIPT_DIR"
 
 if [ -z "$ADMIN_PASSWORD_HASH" ]; then
