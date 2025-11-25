@@ -1,16 +1,43 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { LoginForm } from "../features/auth/components/LoginForm";
+import { login } from "../features/auth/services/authService";
 import BoxmoxLogo from "../assets/boxmox.svg";
 
 export const AuthPage = () => {
-  // Login handler — uses username and password
-  const handleLogin = (username: string, password: string) => {
-    console.log("Login attempt:", { username, password });
-    // TODO: Implement actual authentication logic
-    alert(`Login attempt with username: ${username}`);
-  };
+  const navigate = useNavigate();
 
-  // Forgot password handler removed; this flow is not in the UI
+  // Loading state while login request is in progress
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Error message to display on login failure
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Handles login form submission.
+   * Calls the auth service and navigates to /files on success.
+   */
+  const handleLogin = async (username: string, password: string) => {
+    // Clear any previous errors
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      // Attempt login - token is stored automatically by authService
+      await login(username, password);
+
+      // Navigate to files dashboard on success
+      navigate("/files");
+    } catch (err) {
+      // Display error message to user
+      const message =
+        err instanceof Error ? err.message : "Login failed. Please try again.";
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0D1117] flex items-center justify-center p-4">
@@ -67,8 +94,19 @@ export const AuthPage = () => {
           </h1>
         </motion.div>
 
+        {/* Error message display */}
+        {error && (
+          <motion.div
+            className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm text-center"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            {error}
+          </motion.div>
+        )}
+
         {/* Login form component */}
-        <LoginForm onSubmit={handleLogin} />
+        <LoginForm onSubmit={handleLogin} isLoading={isLoading} />
       </div>
     </div>
   );
