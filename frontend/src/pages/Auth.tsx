@@ -2,31 +2,15 @@ import { motion } from "motion/react";
 import { LoginForm } from "../features/auth/components/LoginForm";
 import BoxmoxLogo from "../assets/boxmox.svg";
 
-/**
- * Auth Page
- * Displays the login form with a clean, minimal layout
- * Features a centered design with subtle background elements
- */
 export const AuthPage = () => {
-  /**
-   * Handles successful login submission
-   * In production, this would call the auth service
-   */
-  const handleLogin = (email: string, password: string) => {
-    console.log("Login attempt:", { email, password });
+  // Login handler — uses username and password
+  const handleLogin = (username: string, password: string) => {
+    console.log("Login attempt:", { username, password });
     // TODO: Implement actual authentication logic
-    alert(`Login attempt with email: ${email}`);
+    alert(`Login attempt with username: ${username}`);
   };
 
-  /**
-   * Handles forgot password flow
-   * In production, this would navigate to password reset
-   */
-  const handleForgotPassword = () => {
-    console.log("Forgot password clicked");
-    // TODO: Implement forgot password flow
-    alert("Forgot password functionality coming soon!");
-  };
+  // Forgot password handler removed; this flow is not in the UI
 
   return (
     <div className="min-h-screen bg-[#0D1117] flex items-center justify-center p-4">
@@ -84,10 +68,7 @@ export const AuthPage = () => {
         </motion.div>
 
         {/* Login form component */}
-        <LoginForm
-          onSubmit={handleLogin}
-          onForgotPassword={handleForgotPassword}
-        />
+        <LoginForm onSubmit={handleLogin} />
       </div>
     </div>
   );

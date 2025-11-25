@@ -1,4 +1,4 @@
-import { Lock, Mail } from "lucide-react";
+import { Lock, User } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "../../../components/Button";
 import { TextInput } from "../../../components/TextInput";
@@ -7,14 +7,10 @@ import type { LoginFormProps } from "../types/auth.types";
 
 /**
  * LoginForm Component
- * Displays a login form with email/password inputs and validation
+ * Displays a login form with username/password inputs and validation
  * Uses custom hook for form state management and validation logic
  */
-export const LoginForm = ({
-  onSubmit,
-  onForgotPassword,
-  isLoading = false,
-}: LoginFormProps) => {
+export const LoginForm = ({ onSubmit, isLoading = false }: LoginFormProps) => {
   // Use custom hook for form logic
   const { formData, errors, touched, updateField, handleBlur, validateForm } =
     useLoginForm();
@@ -28,7 +24,7 @@ export const LoginForm = ({
 
     // Validate and submit if valid
     if (validateForm()) {
-      onSubmit?.(formData.email, formData.password);
+      onSubmit?.(formData.username, formData.password);
     }
   };
 
@@ -45,19 +41,19 @@ export const LoginForm = ({
 
         {/* Login form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Email input field */}
+          {/* Username input field */}
           <TextInput
-            label="Email"
-            type="email"
-            placeholder="you@example.com"
-            value={formData.email}
-            onChange={(e) => updateField("email", e.target.value)}
-            onBlur={() => handleBlur("email")}
-            error={touched.email ? errors.email : ""}
+            label="Username"
+            type="text"
+            placeholder="your-username"
+            value={formData.username}
+            onChange={(e) => updateField("username", e.target.value)}
+            onBlur={() => handleBlur("username")}
+            error={touched.username ? errors.username : ""}
             disabled={isLoading}
             required
             fullWidth
-            icon={<Mail className="w-5 h-5" />}
+            icon={<User className="w-5 h-5" />}
           />
 
           {/* Password input field */}
@@ -86,17 +82,7 @@ export const LoginForm = ({
             {isLoading ? "Logging in..." : "Log In"}
           </Button>
 
-          {/* Forgot password link */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="md"
-            fullWidth
-            onClick={onForgotPassword}
-            disabled={isLoading}
-          >
-            Forgot Password?
-          </Button>
+          {/* No forgot password button - handled elsewhere if needed */}
         </form>
       </div>
     </motion.div>

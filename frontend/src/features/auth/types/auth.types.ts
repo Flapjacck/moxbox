@@ -1,21 +1,20 @@
 // Login form types
 export interface LoginFormData {
-    email: string;
+    username: string;
     password: string;
 }
 
 export interface LoginFormErrors {
-    email: string;
+    username: string;
     password: string;
 }
 
 export interface LoginFormTouched {
-    email: boolean;
+    username: boolean;
     password: boolean;
 }
 
 export interface LoginFormProps {
-    onSubmit?: (email: string, password: string) => void;
-    onForgotPassword?: () => void;
+    onSubmit?: (username: string, password: string) => void;
     isLoading?: boolean;
 }
