@@ -4,7 +4,7 @@ import type {
     LoginFormErrors,
     LoginFormTouched,
 } from "../types/auth.types";
-import { validateEmail, validatePassword } from "../utils/validation";
+import { validateUsername, validatePassword } from "../utils/validation";
 
 /**
  * Custom hook for managing login form state and validation
@@ -13,19 +13,19 @@ import { validateEmail, validatePassword } from "../utils/validation";
 export const useLoginForm = () => {
     // Form state management
     const [formData, setFormData] = useState<LoginFormData>({
-        email: "",
+        username: "",
         password: "",
     });
 
     // Error state for validation feedback
     const [errors, setErrors] = useState<LoginFormErrors>({
-        email: "",
+        username: "",
         password: "",
     });
 
     // Track if user has attempted to interact with fields
     const [touched, setTouched] = useState<LoginFormTouched>({
-        email: false,
+        username: false,
         password: false,
     });
 
@@ -43,8 +43,8 @@ export const useLoginForm = () => {
         setTouched((prev) => ({ ...prev, [field]: true }));
 
         // Validate on blur
-        if (field === "email") {
-            setErrors((prev) => ({ ...prev, email: validateEmail(formData.email) }));
+        if (field === "username") {
+            setErrors((prev) => ({ ...prev, username: validateUsername(formData.username) }));
         } else {
             setErrors((prev) => ({
                 ...prev,
@@ -58,27 +58,27 @@ export const useLoginForm = () => {
      * @returns true if form is valid, false otherwise
      */
     const validateForm = (): boolean => {
-        const emailError = validateEmail(formData.email);
+        const usernameError = validateUsername(formData.username);
         const passwordError = validatePassword(formData.password);
 
         setErrors({
-            email: emailError,
+            username: usernameError,
             password: passwordError,
         });
 
         // Mark all fields as touched
-        setTouched({ email: true, password: true });
+        setTouched({ username: true, password: true });
 
-        return !emailError && !passwordError;
+        return !usernameError && !passwordError;
     };
 
     /**
      * Resets form to initial state
      */
     const resetForm = () => {
-        setFormData({ email: "", password: "" });
-        setErrors({ email: "", password: "" });
-        setTouched({ email: false, password: false });
+        setFormData({ username: "", password: "" });
+        setErrors({ username: "", password: "" });
+        setTouched({ username: false, password: false });
     };
 
     return {
