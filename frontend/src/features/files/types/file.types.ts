@@ -1,10 +1,8 @@
-/**
- * File types and shared UI props for the files feature
- *
- * Centralizing these definitions helps keep components consistent
- * and keeps future backend additions easier to merge.
- */
+// ============================================
+// File Type Categories
+// ============================================
 
+/** Supported file type categories for icon display */
 export type FileType =
     | 'image'
     | 'video'
@@ -13,16 +11,50 @@ export type FileType =
     | 'archive'
     | 'other';
 
+// ============================================
+// API Response Types
+// ============================================
+
+/** Response from GET /api/files - list of user's files */
+export interface FileListResponse {
+    files: string[];
+}
+
+/** Response from POST /api/files/upload */
+export interface UploadResponse {
+    message: string;
+    filename: string;
+    path: string;
+}
+
+/** Response from DELETE /api/files/:filename */
+export interface DeleteResponse {
+    message: string;
+    filename: string;
+}
+
+/** Standard error response from file API */
+export interface FileErrorResponse {
+    message: string;
+    details?: unknown;
+}
+
+// ============================================
+// UI Component Props
+// ============================================
+
+/** Props for FileCard component */
 export interface FileCardProps {
-    /** The display filename (used for title / download path) */
+    /** Display filename */
     fileName: string;
-    /** Optional override for the inferred file type */
+    /** Optional override for inferred file type */
     fileType?: FileType;
-    /** Visual style of the card - list or grid */
+    /** Card layout variant */
     variant?: 'list' | 'grid';
-    /** Callbacks for actions */
+    /** Download action callback */
     onDownload?: () => void;
+    /** Delete action callback */
     onDelete?: () => void;
-    /** Optional extra className for layout overrides */
+    /** Additional CSS classes */
     className?: string;
 }
