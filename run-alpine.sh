@@ -15,9 +15,9 @@ info() { echo "[INFO] $1"; }
 warn() { echo "[WARN] $1"; }
 err() { echo "[ERROR] $1"; exit 1; }
 
-prompt() { printf "%s" "$1"; read -r ans; echo "$ans"; }
+prompt() { printf "%s" "$1" >&2; read -r ans; echo "$ans"; }
 prompt_hidden() {
-    printf "%s" "$1"
+    printf "%s" "$1" >&2
     stty -echo 2>/dev/null || true
     read -r ans
     stty echo 2>/dev/null || true
@@ -73,8 +73,18 @@ setup_env() {
     FE_PORT=$(prompt "Frontend port [5173]: "); FE_PORT=${FE_PORT:-5173}
     FILES_DIR=$(prompt "Files directory [./files]: "); FILES_DIR=${FILES_DIR:-./files}
     ADMIN_USER=$(prompt "Admin username [admin]: "); ADMIN_USER=${ADMIN_USER:-admin}
-    ADMIN_PASS=$(prompt_hidden "Admin password: ")
-    [ -z "$ADMIN_PASS" ] && err "Password required"
+    
+    # Password with confirmation
+    while true; do
+        ADMIN_PASS=$(prompt_hidden "Admin password: ")
+        [ -z "$ADMIN_PASS" ] && err "Password required"
+        ADMIN_PASS_CONFIRM=$(prompt_hidden "Confirm password: ")
+        if [ "$ADMIN_PASS" = "$ADMIN_PASS_CONFIRM" ]; then
+            break
+        else
+            warn "Passwords do not match. Try again."
+        fi
+    done
     
     # Generate secrets
     info "Generating secrets..."
@@ -95,6 +105,7 @@ EOF
     # Frontend .env
     cat > "$FE_ENV" <<EOF
 VITE_BACKEND_URL=http://localhost:$BE_PORT
+VITE_PORT=$FE_PORT
 EOF
     
     mkdir -p "$SCRIPT_DIR/backend/$FILES_DIR"
@@ -106,7 +117,9 @@ if [ "$FORCE_ENV" = true ] || [ ! -f "$BE_ENV" ] || [ ! -f "$FE_ENV" ]; then
 else
     info "Using existing .env (--force to regenerate)"
     BE_PORT=$(grep "^PORT=" "$BE_ENV" | cut -d= -f2)
-    FE_PORT=$(grep "^VITE_BACKEND_URL=" "$FE_ENV" | sed 's/.*:\([0-9]*\)$/\1/')
+    BE_PORT=${BE_PORT:-4200}
+    FE_PORT=$(grep "^VITE_PORT=" "$FE_ENV" | cut -d= -f2)
+    FE_PORT=${FE_PORT:-5173}
 fi
 
 # === STEP 3: BUILD (production only) ===
@@ -145,6 +158,10 @@ info "Frontend: http://0.0.0.0:$FE_PORT"
 info "========================================"
 info "Ctrl+C to stop"
 
-wait -n
+# Wait for either process to exit (POSIX compatible)
+while kill -0 $BE_PID 2>/dev/null && kill -0 $FE_PID 2>/dev/null; do
+    sleep 1
+done
+
 warn "Service stopped"
 cleanup
