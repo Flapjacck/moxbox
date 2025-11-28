@@ -69,6 +69,12 @@ FE_ENV="$SCRIPT_DIR/frontend/.env"
 setup_env() {
     info "Configuring environment..."
     
+    # Auto-detect IP address (first non-localhost IP)
+    DETECTED_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    [ -z "$DETECTED_IP" ] && DETECTED_IP=$(ip -4 addr show 2>/dev/null | awk '/inet / && !/127.0.0.1/ {gsub(/\/.*/, "", $2); print $2; exit}')
+    [ -z "$DETECTED_IP" ] && DETECTED_IP="localhost"
+    
+    HOST_IP=$(prompt "Host IP/domain [$DETECTED_IP]: "); HOST_IP=${HOST_IP:-$DETECTED_IP}
     BE_PORT=$(prompt "Backend port [4200]: "); BE_PORT=${BE_PORT:-4200}
     FE_PORT=$(prompt "Frontend port [5173]: "); FE_PORT=${FE_PORT:-5173}
     FILES_DIR=$(prompt "Files directory [./files]: "); FILES_DIR=${FILES_DIR:-./files}
@@ -99,17 +105,17 @@ JWT_SECRET=$JWT
 ADMIN_USERNAME=$ADMIN_USER
 ADMIN_PASSWORD_HASH=$HASH
 FILES_DIR=$FILES_DIR
-FRONTEND_URL=http://localhost:$FE_PORT
+FRONTEND_URL=http://$HOST_IP:$FE_PORT
 EOF
     
     # Frontend .env
     cat > "$FE_ENV" <<EOF
-VITE_BACKEND_URL=http://localhost:$BE_PORT
+VITE_BACKEND_URL=http://$HOST_IP:$BE_PORT
 VITE_PORT=$FE_PORT
 EOF
     
     mkdir -p "$SCRIPT_DIR/backend/$FILES_DIR"
-    info "Configured: BE=$BE_PORT, FE=$FE_PORT"
+    info "Configured: Host=$HOST_IP, BE=$BE_PORT, FE=$FE_PORT"
 }
 
 if [ "$FORCE_ENV" = true ] || [ ! -f "$BE_ENV" ] || [ ! -f "$FE_ENV" ]; then
@@ -144,7 +150,7 @@ if [ "$MODE" = "dev" ]; then
     (cd "$SCRIPT_DIR/frontend" && pnpm run dev --host --port "$FE_PORT") & FE_PID=$!
 else
     (cd "$SCRIPT_DIR/backend" && node dist/index.js) & BE_PID=$!
-    (cd "$SCRIPT_DIR/frontend" && pnpm run preview -- --host 0.0.0.0 --port "$FE_PORT") & FE_PID=$!
+    (cd "$SCRIPT_DIR/frontend" && pnpm run preview -- --host $HOST_IP --port "$FE_PORT") & FE_PID=$!
 fi
 
 sleep 3
@@ -153,8 +159,8 @@ kill -0 $FE_PID 2>/dev/null || err "Frontend failed"
 
 info "========================================"
 info "moxbox running!"
-info "Backend:  http://0.0.0.0:$BE_PORT"
-info "Frontend: http://0.0.0.0:$FE_PORT"
+info "Backend:  http://$HOST_IP:$BE_PORT"
+info "Frontend: http://$HOST_IP:$FE_PORT"
 info "========================================"
 info "Ctrl+C to stop"
 
