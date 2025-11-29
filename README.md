@@ -12,10 +12,6 @@ Right now, moxbox is nothing. Eventually, I want it to grow into a clean, minima
 
 This is my way of learning backend development, exploring Proxmox, and building a tool I actually want to use every day. More features coming as I keep improving it.
 
-## Open Source & Contributions
-
-I’m more than happy for anyone to contribute, improve features, report issues, or build on top of it. Whether you're fixing a typo or adding a major feature, all contributions are welcome.
-
 ## Running on Alpine Linux
 
 Dev mode:
@@ -25,15 +21,24 @@ chmod +x run-alpine.sh
 ./run-alpine.sh --dev
 ```
 
-Prod mode:
+## Server Setup
 
-```sh
-chmod +x run-alpine.sh
-./run-alpine.sh --build --password "your-secure-password"
-```
+Finally got my hands on the M900 after waiting weeks because of school. Even though it’s a pretty old PC, it’ll do what I need it to do. It’s in good shape and works perfectly. Specs are:
 
-custom ports:
+- Intel i5-6500T  
+- 16GB DDR4 2300MHz (pretty sure)  
+- 250GB M.2 SSD  
 
-```sh
-./run-alpine.sh --dev --port 4200 --frontend-port 5173
-```
+I mean, IMO thats worth it for 100$ CAD. So not a lot of storage, but I recently parted out my broken laptop from years ago and found a 1TB 2.5" HDD that I’m pretty sure is compatible with the M900. I just need to get a SATA cord to make sure the drive still works (the laptop was dropped and didn’t work, so I don’t know what’s actually broken). Mine didn’t come with a bay to mount an extra 2.5" drive, so I’ll have to mount it in a weird way.
+
+Got Proxmox running on it pretty quickly, which was surprising. Usually anything related to hardware either doesn’t want to work or ends up defective the moment I touch it. I have to play around with the Proxmox settings a bit more now that I’ve brought it to my apartment.
+
+### Size Comparision: M900 vs N3ds XL vs Bic Lighter vs Pokemon Card:
+
+<img src="https://i.imgur.com/cSpBF9v.jpeg" width="300">
+
+## Open Source & Contributions
+
+I’m more than happy for anyone to contribute, improve features, report issues, or build on top of it. Whether you're fixing a typo or adding a major feature, all contributions are welcome.
+
+
