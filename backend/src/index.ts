@@ -1,6 +1,7 @@
 // Main Server File
 import express from 'express';
 import config from './config/env';
+import { initializeDatabase, closeDatabase } from './config/db';
 import routes from './routes';
 import cors from 'cors';
 import { NotFoundError } from './middleware/errors';
@@ -35,7 +36,9 @@ app.get('/', (req, res) => {
 // Handle Non existing routes.
 app.use((_req, _res, next) => next(new NotFoundError('Route not found')));
 
-// Start the server
+// Initialize database and start the server
+initializeDatabase();
+
 const server = app.listen(config.port, config.host, () => {
     info(`Server listening on ${config.host}:${config.port} — http://${config.host}:${config.port}/`);
 });
@@ -46,6 +49,7 @@ app.use(errorHandler);
 // Graceful shutdown on signals
 const graceful = () => {
     server.close(() => {
+        closeDatabase();
         info('Server closed');
         process.exit(0);
     });
