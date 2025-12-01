@@ -2,6 +2,7 @@
 import express from 'express';
 import config from './config/env';
 import { initializeDatabase, closeDatabase } from './config/db';
+import { initializeFilesModel } from './models/files';
 import routes from './routes';
 import cors from 'cors';
 import { NotFoundError } from './middleware/errors';
@@ -38,6 +39,8 @@ app.use((_req, _res, next) => next(new NotFoundError('Route not found')));
 
 // Initialize database and start the server
 initializeDatabase();
+// Initialize schema for models (tables, indexes, etc.)
+initializeFilesModel();
 
 const server = app.listen(config.port, config.host, () => {
     info(`Server listening on ${config.host}:${config.port} — http://${config.host}:${config.port}/`);
