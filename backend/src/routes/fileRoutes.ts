@@ -2,7 +2,17 @@ import express from 'express';
 import asyncHandler from '../middleware/asyncHandler';
 import authenticate from '../middleware/authenticate';
 import upload from '../middleware/multerHandler';
-import { uploadFile, listFiles, downloadFile, deleteFile } from '../controllers/fileController';
+import {
+    uploadFile,
+    listFiles,
+    downloadFileById,
+} from '../controllers/fileController';
+import {
+    updateFileMetadata,
+    softDeleteFile,
+    restoreFile,
+    permanentDeleteById,
+} from '../controllers/fileAdminController';
 
 const router = express.Router();
 
@@ -27,21 +37,51 @@ router.post('/upload', authenticate, upload.single('file'), asyncHandler(uploadF
 router.get('/', authenticate, asyncHandler(listFiles));
 
 /**
- * @route   GET /api/files/:name
- * @desc    Download/stream a file by name
+ * @route   GET /api/files/id/:id
+ * @desc    Download/stream a file by DB id (UUID)
  * @access  Private (authenticated users)
  * @todo    Add authorization check (only owner or admin can download)
  * @todo    Add support for range requests (partial content)
  */
-router.get('/:name', authenticate, asyncHandler(downloadFile));
+router.get('/id/:id', authenticate, asyncHandler(downloadFileById));
 
 /**
- * @route   DELETE /api/files/:name
- * @desc    Delete a file by name
+ * @route   DELETE /api/files/id/:id/permanent
+ * @desc    Permanently delete a file by DB id
  * @access  Private (authenticated users)
  * @todo    Add authorization check (only admin or file owner can delete)
  */
-router.delete('/:name', authenticate, asyncHandler(deleteFile));
+// Permanent delete is handled by the admin controller. See route below.
+
+/**
+ * @route   PATCH /api/files/id/:id
+ * @desc    Update file metadata (original_name, is_public, metadata_json)
+ * @access  Private (authenticated users)
+ * @todo    Add authorization check (only admin or file owner can update metadata)
+ */
+router.patch('/id/:id', authenticate, asyncHandler(updateFileMetadata));
+
+/**
+ * @route   POST /api/files/id/:id/soft-delete
+ * @desc    Soft-delete a file (mark DB record status = 'deleted')
+ * @access  Private (authenticated users)
+ * @todo    Add authorization check (only admin or file owner)
+ */
+router.post('/id/:id/soft-delete', authenticate, asyncHandler(softDeleteFile));
+
+/**
+ * @route   POST /api/files/id/:id/restore
+ * @desc    Restore a soft-deleted file (set status = 'active')
+ * @access  Private (authenticated users)
+ */
+router.post('/id/:id/restore', authenticate, asyncHandler(restoreFile));
+
+/**
+ * @route   DELETE /api/files/id/:id/permanent
+ * @desc    Permanently delete a file's DB record and storage object
+ * @access  Private (authenticated users)
+ */
+router.delete('/id/:id/permanent', authenticate, asyncHandler(permanentDeleteById));
 
 /**
  * RBAC notes for file routes:
