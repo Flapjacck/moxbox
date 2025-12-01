@@ -2,6 +2,8 @@ import multer, { FileFilterCallback } from 'multer';
 import { Request } from 'express';
 import { FILES_DIR } from '../config/env';
 import { ValidationError } from './errors';
+import path from 'path';
+import crypto from 'crypto';
 
 /**
  * multerHandler middleware
@@ -65,9 +67,10 @@ const storage = multer.diskStorage({
         cb(null, FILES_DIR);
     },
     filename: (_req: Request, file: Express.Multer.File, cb) => {
-        // Generate a filename: originalname (can change or add)
-        const sanitizedName = file.originalname.replace(/\s+/g, '_');
-        cb(null, sanitizedName);
+        // Generate a unique stored filename using random UUID + original extension
+        const ext = path.extname(file.originalname) || '';
+        const storedName = `${crypto.randomUUID()}${ext}`;
+        cb(null, storedName);
     },
 });
 
