@@ -103,25 +103,6 @@ export async function listFiles(req: Request, res: Response) {
 }
 
 /**
- * GET /api/files/:name
- * Download/stream a file by name
- * 
- * @access Private (authenticated users)
- * @todo Add authorization check (only owner or admin)
- * @todo Add support for range requests (partial content)
- */
-// _downloadFile by storedName removed. Use downloadFileById (DB-backed) instead.
-
-/**
- * DELETE /api/files/:name
- * Delete a file from storage
- * 
- * @access Private (authenticated users)
- * @todo Add authorization check (only admin or file owner)
- */
-// deleteFile by storedName removed. Use admin endpoints (id-based) for deletion.
-
-/**
  * GET /api/files/:id (matches UUID id)
  * Download/stream a file by DB id
  */
