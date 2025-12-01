@@ -1,9 +1,16 @@
 import { Request, Response } from 'express';
 import { createReadStream } from 'fs';
+import crypto from 'crypto';
 import { stat } from 'fs/promises';
 import * as fileStorage from '../utils/fileStorage';
-import { ValidationError } from '../middleware/errors';
+import { ValidationError, NotFoundError } from '../middleware/errors';
 import { info } from '../utils/logger';
+import {
+    createFile as createFileModel,
+    getFileById as getFileByIdModel,
+    listFiles as listFilesModel,
+    bumpAccess as bumpAccessModel,
+} from '../models/files';
 
 /**
  * Controller: File
@@ -30,11 +37,41 @@ export async function uploadFile(req: Request, res: Response) {
     // File is already saved by multer to FILES_DIR with unique name
     info('File uploaded successfully', { filename: file.filename, originalName: file.originalname });
 
-    return res.status(201).json({
-        message: 'File uploaded successfully',
-        filename: file.filename,
-        path: fileStorage.getFilePath(file.filename),
-    });
+    // Persist file metadata to DB
+    try {
+        // compute sha256 of uploaded file for integrity/duplicate checks
+        const filePath = fileStorage.getFilePath(file.filename);
+        const sha256 = await (async () => {
+            const h = crypto.createHash('sha256');
+            const stream = createReadStream(filePath);
+            for await (const chunk of stream) {
+                h.update(chunk);
+            }
+            return h.digest('hex');
+        })();
+
+        const created = createFileModel({
+            originalName: file.originalname,
+            storedName: file.filename,
+            mimeType: file.mimetype,
+            size: file.size,
+            hashSha256: sha256,
+            storagePath: filePath,
+            ownerId: req.user?.id ?? null,
+            isPublic: false,
+        });
+
+        return res.status(201).json({ message: 'File uploaded successfully', file: created });
+    } catch (err) {
+        // If DB insert fails, remove the stored file to avoid orphaned files
+        try {
+            await fileStorage.deleteFile(file.filename);
+        } catch (delErr) {
+            // Log cleanup failure, but don't mask the real error
+            info('Cleanup failure: failed to delete file after DB error', { filename: file.filename });
+        }
+        throw err;
+    }
 }
 
 /**
@@ -51,7 +88,14 @@ export async function listFiles(req: Request, res: Response) {
     const pattern = req.query.pattern as string | undefined;
     const filter = pattern ? { pattern } : undefined;
 
-    const files = await fileStorage.listFiles(filter);
+
+    // Support optional query params for ownerId and isPublic (for now read from query)
+    const ownerId = req.query.ownerId as string | undefined || req.user?.id;
+    const isPublic = req.query.isPublic ? req.query.isPublic === 'true' : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const offset = req.query.offset ? Number(req.query.offset) : undefined;
+
+    const files = listFilesModel({ ownerId, isPublic, limit, offset });
 
     info('Files listed successfully', { count: files.length });
 
@@ -66,26 +110,7 @@ export async function listFiles(req: Request, res: Response) {
  * @todo Add authorization check (only owner or admin)
  * @todo Add support for range requests (partial content)
  */
-export async function downloadFile(req: Request, res: Response) {
-    const filename = req.params.name;
-
-    if (!filename) {
-        throw new ValidationError('Filename is required');
-    }
-
-    // Get file path and verify it exists
-    const filePath = fileStorage.getFilePath(filename);
-    const fileStats = await stat(filePath);
-
-    // Stream the file to the client (inline, not as attachment)
-    res.setHeader('Content-Length', fileStats.size);
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-
-    const fileStream = createReadStream(filePath);
-    fileStream.pipe(res);
-
-    info('File download initiated', { filename });
-}
+// _downloadFile by storedName removed. Use downloadFileById (DB-backed) instead.
 
 /**
  * DELETE /api/files/:name
@@ -94,16 +119,28 @@ export async function downloadFile(req: Request, res: Response) {
  * @access Private (authenticated users)
  * @todo Add authorization check (only admin or file owner)
  */
-export async function deleteFile(req: Request, res: Response) {
-    const filename = req.params.name;
+// deleteFile by storedName removed. Use admin endpoints (id-based) for deletion.
 
-    if (!filename) {
-        throw new ValidationError('Filename is required');
-    }
+/**
+ * GET /api/files/:id (matches UUID id)
+ * Download/stream a file by DB id
+ */
+export async function downloadFileById(req: Request, res: Response) {
+    const id = req.params.id;
+    if (!id) throw new ValidationError('File id is required');
 
-    await fileStorage.deleteFile(filename);
+    const file = getFileByIdModel(id);
+    if (!file) throw new NotFoundError('File not found');
 
-    info('File deleted successfully', { filename });
+    const filePath = file.storage_path;
+    const stats = await stat(filePath);
+    // Set headers and stream
+    res.setHeader('Content-Length', stats.size);
+    res.setHeader('Content-Type', file.mime_type ?? 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${file.original_name}"`);
 
-    return res.status(200).json({ message: 'File deleted successfully', filename });
+    const fileStream = createReadStream(filePath);
+    fileStream.pipe(res);
+    // bump access, ignore errors
+    try { bumpAccessModel(file.id); } catch (e) { /* ignore */ }
 }
