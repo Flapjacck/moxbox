@@ -52,7 +52,7 @@ export const UploadButton: FC<UploadButtonProps> = ({
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             } else {
-                try { e.currentTarget.value = ''; } catch (_) { /* ignore */ }
+                try { e.currentTarget.value = ''; } catch { /* ignore */ }
             }
         }
     };
