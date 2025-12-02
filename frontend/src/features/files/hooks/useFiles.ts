@@ -1,44 +1,51 @@
 /**
  * useFiles Hook
  * ==============
- * State management for file operations.
- * Handles fetching, uploading, downloading, and deleting files.
+ * State management for active file operations.
+ * Handles fetching, uploading, downloading, and soft-deleting files.
+ * Works with FileItem objects from the new ID-based API.
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { listFiles, uploadFile, downloadFile, deleteFile } from '../services/fileService';
+import {
+    listFiles,
+    uploadFile,
+    downloadFileById,
+    softDeleteFile,
+} from '../services/fileService';
+import type { FileItem } from '../types/file.types';
 
 /** State shape returned by the hook */
 export interface UseFilesState {
-    files: string[];
+    files: FileItem[];
     isLoading: boolean;
     error: string | null;
 }
 
 /** Actions returned by the hook */
 export interface UseFilesActions {
-    fetchFiles: (pattern?: string) => Promise<void>;
-    upload: (file: File) => Promise<void>;
-    download: (filename: string) => Promise<void>;
-    remove: (filename: string) => Promise<void>;
+    fetchFiles: () => Promise<void>;
+    upload: (file: File, folder?: string) => Promise<void>;
+    download: (file: FileItem) => Promise<void>;
+    remove: (file: FileItem) => Promise<void>;
     clearError: () => void;
 }
 
 /**
- * Hook for managing file list state and operations.
+ * Hook for managing active file list state and operations.
  * Automatically fetches files on mount.
  */
 export const useFiles = (): UseFilesState & UseFilesActions => {
-    const [files, setFiles] = useState<string[]>([]);
+    const [files, setFiles] = useState<FileItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Fetch files from server
-    const fetchFiles = useCallback(async (pattern?: string) => {
+    // Fetch active files from server
+    const fetchFiles = useCallback(async () => {
         setError(null);
         setIsLoading(true);
         try {
-            const response = await listFiles(pattern);
+            const response = await listFiles('active');
             setFiles(response.files);
         } catch (err) {
             const msg = err instanceof Error ? err.message : 'Failed to load files';
@@ -49,11 +56,11 @@ export const useFiles = (): UseFilesState & UseFilesActions => {
     }, []);
 
     // Upload a file then refresh list
-    const upload = useCallback(async (file: File) => {
+    const upload = useCallback(async (file: File, folder?: string) => {
         setError(null);
         setIsLoading(true);
         try {
-            await uploadFile(file);
+            await uploadFile(file, folder);
             await fetchFiles();
         } catch (err) {
             const msg = err instanceof Error ? err.message : 'Upload failed';
@@ -64,14 +71,14 @@ export const useFiles = (): UseFilesState & UseFilesActions => {
     }, [fetchFiles]);
 
     // Download file and trigger browser download
-    const download = useCallback(async (filename: string) => {
+    const download = useCallback(async (file: FileItem) => {
         setError(null);
         try {
-            const blob = await downloadFile(filename);
+            const blob = await downloadFileById(file.id);
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = filename;
+            a.download = file.originalName; // Use original filename
             a.click();
             URL.revokeObjectURL(url);
         } catch (err) {
@@ -80,12 +87,12 @@ export const useFiles = (): UseFilesState & UseFilesActions => {
         }
     }, []);
 
-    // Delete file then refresh list
-    const remove = useCallback(async (filename: string) => {
+    // Soft-delete file (move to trash) then refresh list
+    const remove = useCallback(async (file: FileItem) => {
         setError(null);
         setIsLoading(true);
         try {
-            await deleteFile(filename);
+            await softDeleteFile(file.id);
             await fetchFiles();
         } catch (err) {
             const msg = err instanceof Error ? err.message : 'Delete failed';
