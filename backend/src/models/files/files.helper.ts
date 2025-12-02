@@ -145,6 +145,29 @@ export function getFileByStoredName(storedName: string): FileRecord | null {
 }
 
 /**
+ * getDeletedFileByOriginalNameAndFolder
+ * - Find a trashed (soft-deleted) file by the display/original filename
+ *   and the folder it lives in. This is used by the upload flow to detect
+ *   potential conflicts where a user attempts to upload a file that already
+ *   exists in the Trash. We intentionally do not check owner_id here so the
+ *   behavior is solely based on filename + location.
+ */
+export function getDeletedFileByOriginalNameAndFolder(originalName: string, folder?: string | null): FileRecord | null {
+    const db = getDatabase();
+    if (!folder) {
+        // Root folder: storage_path should not contain any '/'
+        const stmt = db.prepare('SELECT * FROM files WHERE original_name = ? AND status = ? AND storage_path NOT LIKE ? LIMIT 1;');
+        const row = stmt.get(originalName, 'deleted', '%/%');
+        return normalizeRow(row);
+    }
+
+    // Folder has been provided; match storage_path prefix 'folder/%'
+    const stmt = db.prepare(`SELECT * FROM files WHERE original_name = ? AND status = 'deleted' AND storage_path LIKE ? LIMIT 1;`);
+    const row = stmt.get(originalName, `${folder}/%`);
+    return normalizeRow(row);
+}
+
+/**
  * listFiles
  * - List files with optional filters and pagination.
  * - Supports filtering by status ('active' or 'deleted') for trash feature.
