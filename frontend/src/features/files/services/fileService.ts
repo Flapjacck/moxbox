@@ -2,12 +2,46 @@
  * File Service
  * =============
  * API call wrappers for file management endpoints.
- * Handles list, upload, download, and delete operations.
+ * Handles list, upload, download, delete, restore, and metadata operations.
+ * All file operations use ID-based endpoints for security.
  */
 
 import { apiFetch } from '../../../api';
 import { getToken, clearToken } from '../../auth/services/authService';
-import type { FileListResponse, UploadResponse, DeleteResponse } from '../types/file.types';
+import type {
+    FileItem,
+    FileListResponse,
+    UploadResponse,
+    FileActionResponse,
+    DeleteResponse,
+} from '../types/file.types';
+
+// ============================================
+// Snake_case to camelCase Mapper
+// ============================================
+
+/**
+ * Converts a snake_case backend file record to camelCase FileItem.
+ * Keeps frontend code idiomatic while matching backend schema.
+ */
+const mapFileRecord = (record: Record<string, unknown>): FileItem => ({
+    id: record.id as string,
+    originalName: record.original_name as string,
+    storedName: record.stored_name as string,
+    mimeType: record.mime_type as string | null,
+    size: record.size as number | null,
+    hashSha256: record.hash_sha256 as string | null,
+    storageProvider: record.storage_provider as string,
+    storagePath: record.storage_path as string,
+    ownerId: record.owner_id as string | null,
+    isPublic: Boolean(record.is_public),
+    accessCount: (record.access_count as number) ?? 0,
+    lastAccessed: record.last_accessed as string | null,
+    status: (record.status as 'active' | 'deleted') ?? 'active',
+    metadataJson: record.metadata_json as string | null,
+    createdAt: record.created_at as string,
+    updatedAt: record.updated_at as string | null,
+});
 
 // ============================================
 // Helper Functions
@@ -43,73 +77,101 @@ const handleErrorResponse = async (response: Response): Promise<never> => {
 // ============================================
 
 /**
- * Fetches list of user's files.
- * @param pattern - Optional filter pattern for filenames
+ * Fetches list of user's files (active files only by default).
+ * @param status - Optional filter for file status ('active' | 'deleted')
  */
-export const listFiles = async (pattern?: string): Promise<FileListResponse> => {
-    const url = pattern ? `/files?pattern=${encodeURIComponent(pattern)}` : '/files';
+export const listFiles = async (status?: string): Promise<FileListResponse> => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    const url = params.toString() ? `/files?${params}` : '/files';
 
-    const response = await apiFetch(url, {
-        headers: getAuthHeaders(),
-    });
+    const response = await apiFetch(url, { headers: getAuthHeaders() });
+    if (!response.ok) await handleErrorResponse(response);
 
-    if (!response.ok) {
-        await handleErrorResponse(response);
-    }
-
-    return response.json();
+    const data = await response.json();
+    return { files: (data.files || []).map(mapFileRecord) };
 };
 
 /**
  * Uploads a file to the server.
  * @param file - File object to upload
+ * @param folder - Optional subfolder path within FILES_DIR
  */
-export const uploadFile = async (file: File): Promise<UploadResponse> => {
+export const uploadFile = async (file: File, folder?: string): Promise<UploadResponse> => {
     const formData = new FormData();
+    // IMPORTANT: folder must be appended BEFORE the file for multer to read it
+    // in the destination callback (multipart fields are parsed in order)
+    if (folder) formData.append('folder', folder);
     formData.append('file', file);
 
+    // Note: Don't set Content-Type header for FormData; browser sets boundary
     const response = await apiFetch('/files/upload', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: formData,
     });
 
-    if (!response.ok) {
-        await handleErrorResponse(response);
-    }
+    if (!response.ok) await handleErrorResponse(response);
 
-    return response.json();
+    const data = await response.json();
+    return { message: data.message, file: mapFileRecord(data.file) };
 };
 
 /**
- * Downloads a file as a blob.
- * @param filename - Name of file to download
+ * Downloads a file by ID as a blob.
+ * @param fileId - UUID of the file to download
  */
-export const downloadFile = async (filename: string): Promise<Blob> => {
-    const response = await apiFetch(`/files/${encodeURIComponent(filename)}`, {
+export const downloadFileById = async (fileId: string): Promise<Blob> => {
+    const response = await apiFetch(`/files/id/${encodeURIComponent(fileId)}`, {
         headers: getAuthHeaders(),
     });
 
-    if (!response.ok) {
-        await handleErrorResponse(response);
-    }
-
+    if (!response.ok) await handleErrorResponse(response);
     return response.blob();
 };
 
 /**
- * Deletes a file from the server.
- * @param filename - Name of file to delete
+ * Soft-deletes a file (moves to trash).
+ * @param fileId - UUID of the file to soft-delete
  */
-export const deleteFile = async (filename: string): Promise<DeleteResponse> => {
-    const response = await apiFetch(`/files/${encodeURIComponent(filename)}`, {
+export const softDeleteFile = async (fileId: string): Promise<FileActionResponse> => {
+    const response = await apiFetch(`/files/id/${encodeURIComponent(fileId)}/soft-delete`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) await handleErrorResponse(response);
+
+    const data = await response.json();
+    return { message: data.message, file: mapFileRecord(data.file) };
+};
+
+/**
+ * Restores a soft-deleted file from trash.
+ * @param fileId - UUID of the file to restore
+ */
+export const restoreFile = async (fileId: string): Promise<FileActionResponse> => {
+    const response = await apiFetch(`/files/id/${encodeURIComponent(fileId)}/restore`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) await handleErrorResponse(response);
+
+    const data = await response.json();
+    return { message: data.message, file: mapFileRecord(data.file) };
+};
+
+/**
+ * Permanently deletes a file (cannot be undone).
+ * @param fileId - UUID of the file to permanently delete
+ */
+export const permanentDeleteFile = async (fileId: string): Promise<DeleteResponse> => {
+    const response = await apiFetch(`/files/id/${encodeURIComponent(fileId)}/permanent`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
     });
 
-    if (!response.ok) {
-        await handleErrorResponse(response);
-    }
-
+    if (!response.ok) await handleErrorResponse(response);
     return response.json();
 };
