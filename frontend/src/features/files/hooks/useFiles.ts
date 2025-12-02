@@ -25,7 +25,7 @@ export interface UseFilesState {
 /** Actions returned by the hook */
 export interface UseFilesActions {
     fetchFiles: () => Promise<void>;
-    upload: (file: File, folder?: string) => Promise<void>;
+    upload: (file: File, folder?: string, action?: 'replace' | 'keep_both') => Promise<void>;
     download: (file: FileItem) => Promise<void>;
     remove: (file: FileItem) => Promise<void>;
     clearError: () => void;
@@ -56,11 +56,11 @@ export const useFiles = (): UseFilesState & UseFilesActions => {
     }, []);
 
     // Upload a file then refresh list
-    const upload = useCallback(async (file: File, folder?: string) => {
+    const upload = useCallback(async (file: File, folder?: string, action?: 'replace' | 'keep_both') => {
         setError(null);
         setIsLoading(true);
         try {
-            await uploadFile(file, folder);
+            await uploadFile(file, folder, action);
             await fetchFiles();
         } catch (err) {
             const msg = err instanceof Error ? err.message : 'Upload failed';

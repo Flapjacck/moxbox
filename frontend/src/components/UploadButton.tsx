@@ -6,7 +6,7 @@ import { UploadCloud } from 'lucide-react';
  */
 interface UploadButtonProps {
     /** Callback when file is selected */
-    onUpload: (file: File) => Promise<void> | void;
+    onUpload: (file: File, action?: 'replace' | 'keep_both') => Promise<void> | void;
     /** Button label text */
     label?: string;
     /** Whether button is disabled */
@@ -15,6 +15,8 @@ interface UploadButtonProps {
     className?: string;
     /** Accept attribute for file input (e.g., "image/*") */
     accept?: string;
+    /** callback when an upload conflict occurs, receives the conflict payload and original file */
+    onDuplicate?: (data: { conflict: any; file: File }) => void;
 }
 
 /**
@@ -32,6 +34,7 @@ export const UploadButton: FC<UploadButtonProps> = ({
     disabled = false,
     className = '',
     accept,
+    onDuplicate,
 }) => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -46,6 +49,13 @@ export const UploadButton: FC<UploadButtonProps> = ({
         const file = files[0];
         try {
             await onUpload(file);
+        } catch (err) {
+            // If the backend returned a 409 conflict, notify the parent via onDuplicate
+            if ((err as any)?.status === 409 && onDuplicate) {
+                try { onDuplicate({ conflict: (err as any).payload?.conflict ?? null, file }); } catch (e) { /* ignore */ }
+                return;
+            }
+            throw err;
         } finally {
             // Reset input to allow re-uploading same file, even if upload fails
             // Use the ref when available to ensure we're clearing the actual element

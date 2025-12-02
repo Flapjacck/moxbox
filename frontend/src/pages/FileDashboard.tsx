@@ -39,6 +39,9 @@ export const FileDashboard = () => {
     remove,
   } = useFileBrowser();
 
+  // Duplicate upload conflict state
+  const [duplicateConflict, setDuplicateConflict] = useState<{ conflict: any; file: File } | null>(null);
+
   // Folder operations
   const { create: createFolder, remove: deleteFolder } = useFolders();
 
@@ -76,6 +79,25 @@ export const FileDashboard = () => {
     const newPath = currentPath ? `${currentPath}/${name}` : name;
     await createFolder(newPath);
     await refresh();
+  };
+
+  // Handle duplicate detected by API: show modal
+  const onDuplicate = (data: { conflict: any; file: File }) => {
+    setDuplicateConflict(data);
+  };
+
+  const clearDuplicate = () => setDuplicateConflict(null);
+
+  const handleResolveDuplicate = async (action: 'replace' | 'keep_both') => {
+    if (!duplicateConflict) return;
+    try {
+      await upload(duplicateConflict.file, action);
+      setDuplicateConflict(null);
+      await refresh();
+    } catch (err) {
+      // errors are handled by the hook (setError)
+      setDuplicateConflict(null);
+    }
   };
 
   const totalCount = filteredFiles.length + filteredFolders.length;
@@ -131,6 +153,7 @@ export const FileDashboard = () => {
         onRefresh={refresh}
         count={totalCount}
         isUploading={isLoading}
+        onDuplicate={onDuplicate}
       />
 
       {/* Loading state */}
@@ -187,6 +210,21 @@ export const FileDashboard = () => {
         onCreate={handleCreateFolder}
         currentPath={currentPath}
       />
+
+      {/* Duplicate conflict modal */}
+      {duplicateConflict && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
+          <div className="bg-[#0B1220] rounded-lg p-6 w-96 border border-[#30363D]">
+            <h3 className="text-lg font-semibold mb-2">Upload Conflict</h3>
+            <p className="text-sm text-slate-300 mb-4">A file named <strong className="text-slate-100">{duplicateConflict.conflict?.originalName ?? duplicateConflict.file.name}</strong> already exists in this folder.</p>
+            <div className="flex items-center gap-3 justify-end">
+              <button className="px-3 py-1 rounded bg-[#161B22] text-slate-200" onClick={() => clearDuplicate()}>Cancel</button>
+              <button className="px-3 py-1 rounded bg-[#2EA043] text-white" onClick={() => handleResolveDuplicate('keep_both')}>Keep both (rename)</button>
+              <button className="px-3 py-1 rounded bg-[#E11D48] text-white" onClick={() => handleResolveDuplicate('replace')}>Replace</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
