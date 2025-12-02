@@ -143,9 +143,11 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
         try {
             await uploadFile(file, currentPath || undefined, action);
             await refresh();
-        } catch (err) {
+        } catch (err: unknown) {
             // If backend returned 409 conflict, bubble up the error so the caller can present a choice to the user
-            if ((err as any)?.status === 409) {
+            type ApiError = Error & { status?: number };
+            const isApiError = (v: unknown): v is ApiError => (typeof v === 'object' && v !== null && 'status' in (v as Record<string, unknown>));
+            if (isApiError(err) && err.status === 409) {
                 throw err;
             }
             const msg = err instanceof Error ? err.message : 'Upload failed';

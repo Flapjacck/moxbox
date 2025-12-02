@@ -1,6 +1,7 @@
 import type { FC } from 'react';
 import { List, Grid, RefreshCw } from 'lucide-react';
 import { UploadButton } from '../../../components/UploadButton';
+import type { ConflictPayload } from '../types/file.types';
 
 /**
  * FileListToolbar Props
@@ -16,7 +17,7 @@ interface FileListToolbarProps {
 	setPattern: (s: string) => void;
 	/** Upload callback - receives file to upload */
 	onUpload?: (file: File, action?: 'replace' | 'keep_both') => Promise<void> | void;
-	onDuplicate?: (data: { conflict: any; file: File }) => void;
+	onDuplicate?: (data: { conflict: ConflictPayload | null; file: File }) => void;
 	/** Refresh callback */
 	onRefresh?: () => void;
 	/** Item count to display */

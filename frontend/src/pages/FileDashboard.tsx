@@ -6,7 +6,7 @@ import { FileListToolbar } from '../features/files/components/FileListToolbar';
 import { FileCard } from '../features/files/components/FileCard';
 import { Breadcrumbs, FolderCard, CreateFolderModal } from '../features/folders/components';
 import { Loader2, Trash2, FolderPlus } from 'lucide-react';
-import type { FileItem } from '../features/files/types/file.types';
+import type { FileItem, ConflictPayload } from '../features/files/types/file.types';
 
 /**
  * FileDashboard Page
@@ -40,7 +40,7 @@ export const FileDashboard = () => {
   } = useFileBrowser();
 
   // Duplicate upload conflict state
-  const [duplicateConflict, setDuplicateConflict] = useState<{ conflict: any; file: File } | null>(null);
+  const [duplicateConflict, setDuplicateConflict] = useState<{ conflict: ConflictPayload | null; file: File } | null>(null);
 
   // Folder operations
   const { create: createFolder, remove: deleteFolder } = useFolders();
@@ -82,7 +82,7 @@ export const FileDashboard = () => {
   };
 
   // Handle duplicate detected by API: show modal
-  const onDuplicate = (data: { conflict: any; file: File }) => {
+  const onDuplicate = (data: { conflict: ConflictPayload | null; file: File }) => {
     setDuplicateConflict(data);
   };
 
@@ -94,7 +94,7 @@ export const FileDashboard = () => {
       await upload(duplicateConflict.file, action);
       setDuplicateConflict(null);
       await refresh();
-    } catch (err) {
+    } catch {
       // errors are handled by the hook (setError)
       setDuplicateConflict(null);
     }
