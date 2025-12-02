@@ -12,6 +12,9 @@ import {
     listFiles as listFilesModel,
     bumpAccess as bumpAccessModel,
     getDeletedFileByOriginalNameAndFolder as getDeletedFileByOriginalNameAndFolderModel,
+    getActiveFileByOriginalNameAndFolder as getActiveFileByOriginalNameAndFolderModel,
+    generateUniqueOriginalNameInFolder as generateUniqueOriginalNameInFolderModel,
+    updateFile as updateFileModel,
 } from '../models/files';
 
 /**
@@ -60,6 +63,17 @@ export async function uploadFile(req: Request, res: Response) {
         throw new ValidationError(`Upload blocked: a file named '${file.originalname}' already exists in your Trash. Restore it from Trash, or rename the file and try again.`);
     }
 
+    // If a currently active file with the same name exists in the same folder
+    const activeConflict = getActiveFileByOriginalNameAndFolderModel(file.originalname, sanitizedFolder || null);
+    const action = (req.body?.action as string | undefined) ?? undefined;
+
+    // If conflict detected and no action specified -> return 409 with info for front-end prompt
+    if (activeConflict && !action) {
+        try { await fileStorage.deleteFile(storagePath); } catch (delErr) { info('Cleanup failure: failed to delete uploaded file after blocked upload (active duplicate)', { storagePath }); }
+        info('Upload conflict: file exists in active files', { originalName: file.originalname, folder: sanitizedFolder || '(root)', existingId: activeConflict.id });
+        return res.status(409).json({ message: `A file named '${file.originalname}' already exists in this folder.`, conflict: { id: activeConflict.id, originalName: activeConflict.original_name, storagePath: activeConflict.storage_path } });
+    }
+
     // Persist file metadata to DB
     try {
         // Compute sha256 of uploaded file for integrity/duplicate checks
@@ -73,8 +87,37 @@ export async function uploadFile(req: Request, res: Response) {
             return h.digest('hex');
         })();
 
+        // Replacement requested: update the existing DB record so links stay valid
+        if (action === 'replace' && activeConflict) {
+            const oldStorage = activeConflict.storage_path;
+            const updated = updateFileModel(activeConflict.id, {
+                original_name: activeConflict.original_name,
+                stored_name: file.filename,
+                mime_type: file.mimetype,
+                size: file.size,
+                hash_sha256: sha256,
+                storage_provider: 'local',
+                storage_path: storagePath,
+                owner_id: req.user?.id ?? null,
+                is_public: activeConflict.is_public ? 1 : 0,
+                status: 'active',
+            });
+            // Remove the old physical file to avoid orphan files and save disk space
+            if (oldStorage && oldStorage !== storagePath) {
+                try { await fileStorage.deleteFile(oldStorage); } catch (err) { info('Failed to delete replaced old file', { oldStorage }); }
+            }
+
+            return res.status(200).json({ message: 'File replaced successfully', file: updated });
+        }
+
+        // Keep both behavior: generate a unique display name if conflict exists
+        let displayName = file.originalname;
+        if (action === 'keep_both' && activeConflict) {
+            displayName = generateUniqueOriginalNameInFolderModel(file.originalname, sanitizedFolder || null);
+        }
+
         const created = createFileModel({
-            originalName: file.originalname,
+            originalName: displayName,
             storedName: file.filename,
             mimeType: file.mimetype,
             size: file.size,

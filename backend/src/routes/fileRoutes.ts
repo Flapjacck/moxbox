@@ -30,6 +30,7 @@ const router = express.Router();
  * @middleware multer - Handles multipart/form-data, validates file size/type
  * @body    file - The file to upload (multipart)
  * @body    folder - Optional subdirectory path (e.g., "projects/2024")
+ * @body    action - Optional upload action when a duplicate exists: 'replace'|'keep_both'
  */
 router.post('/upload', authenticate, upload.single('file'), asyncHandler(uploadFile));
 

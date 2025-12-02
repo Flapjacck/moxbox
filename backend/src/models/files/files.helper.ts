@@ -168,6 +168,47 @@ export function getDeletedFileByOriginalNameAndFolder(originalName: string, fold
 }
 
 /**
+ * getActiveFileByOriginalNameAndFolder
+ * - Find an active file by the display/original filename and the folder it lives in.
+ * - Mirrors the trashed lookup but only for active files.
+ */
+export function getActiveFileByOriginalNameAndFolder(originalName: string, folder?: string | null): FileRecord | null {
+    const db = getDatabase();
+    if (!folder) {
+        const stmt = db.prepare('SELECT * FROM files WHERE original_name = ? AND status = ? AND storage_path NOT LIKE ? LIMIT 1;');
+        const row = stmt.get(originalName, 'active', '%/%');
+        return normalizeRow(row);
+    }
+
+    const stmt = db.prepare(`SELECT * FROM files WHERE original_name = ? AND status = 'active' AND storage_path LIKE ? LIMIT 1;`);
+    const row = stmt.get(originalName, `${folder}/%`);
+    return normalizeRow(row);
+}
+
+/**
+ * generateUniqueOriginalNameInFolder
+ * - If the originalName already exists in the target folder (active), generate a unique
+ *   display name by appending a numbered suffix like " (1)", " (2)", etc.
+ */
+export function generateUniqueOriginalNameInFolder(originalName: string, folder?: string | null): string {
+    // If there is no conflict, return original
+    if (!getActiveFileByOriginalNameAndFolder(originalName, folder)) return originalName;
+
+    // Split name into base and extension
+    const ext = originalName.includes('.') ? `.${originalName.split('.').pop()}` : '';
+    const base = ext ? originalName.slice(0, -(ext.length)) : originalName;
+
+    // Try suffixes until a free name is found
+    for (let i = 1; i < 1000; i++) {
+        const candidate = `${base} (${i})${ext}`;
+        if (!getActiveFileByOriginalNameAndFolder(candidate, folder)) return candidate;
+    }
+
+    // Fallback: append timestamp
+    return `${base} (${Date.now()})${ext}`;
+}
+
+/**
  * listFiles
  * - List files with optional filters and pagination.
  * - Supports filtering by status ('active' or 'deleted') for trash feature.
