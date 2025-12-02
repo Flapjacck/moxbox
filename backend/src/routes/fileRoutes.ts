@@ -17,22 +17,29 @@ import {
 const router = express.Router();
 
 /**
+ * File Routes
+ * - Manage files within FILES_DIR (supports subdirectories)
+ * - Upload accepts optional `folder` field for subdirectory placement
+ * - File paths stored as relative paths in DB (e.g., "folder/file.txt")
+ */
+
+/**
  * @route   POST /api/files/upload
- * @desc    Upload a new file
+ * @desc    Upload a new file to storage (optionally into a subdirectory)
  * @access  Private (authenticated users)
  * @middleware multer - Handles multipart/form-data, validates file size/type
- * @todo    Add file metadata storage (owner, uploadDate, mimetype)
+ * @body    file - The file to upload (multipart)
+ * @body    folder - Optional subdirectory path (e.g., "projects/2024")
  */
 router.post('/upload', authenticate, upload.single('file'), asyncHandler(uploadFile));
 
 /**
  * @route   GET /api/files
- * @desc    List files (with optional pattern filter)
+ * @desc    List file metadata from DB (owned by user)
  * @access  Private (authenticated users)
- * @query   ?pattern=xyz - Optional filter to match filenames
- * @todo    Add pagination support (offset, limit)
- * @todo    Add filtering by mimetype, size, date range, owner
- * @todo    Return metadata (size, uploadDate, owner, mimetype)
+ * @query   ?ownerId=xyz - Filter by owner (defaults to current user)
+ * @query   ?isPublic=true - Filter by public visibility
+ * @query   ?limit=10&offset=0 - Pagination
  */
 router.get('/', authenticate, asyncHandler(listFiles));
 
@@ -40,24 +47,14 @@ router.get('/', authenticate, asyncHandler(listFiles));
  * @route   GET /api/files/id/:id
  * @desc    Download/stream a file by DB id (UUID)
  * @access  Private (authenticated users)
- * @todo    Add authorization check (only owner or admin can download)
- * @todo    Add support for range requests (partial content)
+ * @note    Files may be in subdirectories; path resolved from DB storage_path
  */
 router.get('/id/:id', authenticate, asyncHandler(downloadFileById));
-
-/**
- * @route   DELETE /api/files/id/:id/permanent
- * @desc    Permanently delete a file by DB id
- * @access  Private (authenticated users)
- * @todo    Add authorization check (only admin or file owner can delete)
- */
-// Permanent delete is handled by the admin controller. See route below.
 
 /**
  * @route   PATCH /api/files/id/:id
  * @desc    Update file metadata (original_name, is_public, metadata_json)
  * @access  Private (authenticated users)
- * @todo    Add authorization check (only admin or file owner can update metadata)
  */
 router.patch('/id/:id', authenticate, asyncHandler(updateFileMetadata));
 
@@ -65,7 +62,6 @@ router.patch('/id/:id', authenticate, asyncHandler(updateFileMetadata));
  * @route   POST /api/files/id/:id/soft-delete
  * @desc    Soft-delete a file (mark DB record status = 'deleted')
  * @access  Private (authenticated users)
- * @todo    Add authorization check (only admin or file owner)
  */
 router.post('/id/:id/soft-delete', authenticate, asyncHandler(softDeleteFile));
 
@@ -78,16 +74,9 @@ router.post('/id/:id/restore', authenticate, asyncHandler(restoreFile));
 
 /**
  * @route   DELETE /api/files/id/:id/permanent
- * @desc    Permanently delete a file's DB record and storage object
+ * @desc    Permanently delete file from DB and storage (supports subdirectories)
  * @access  Private (authenticated users)
  */
 router.delete('/id/:id/permanent', authenticate, asyncHandler(permanentDeleteById));
-
-/**
- * RBAC notes for file routes:
- * - `authenticate` middleware populates `req.user` with verified JWT claims
- * @todo Implement `authorize(...allowedRoles)` middleware for role-based checks
- * @todo Add owner-specific checks (compare `req.user.id` to file owner metadata)
- */
 
 export default router;

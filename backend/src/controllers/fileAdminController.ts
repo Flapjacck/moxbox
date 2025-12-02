@@ -54,7 +54,8 @@ export async function permanentDeleteById(req: Request, res: Response) {
     if (!file) throw new NotFoundError('File not found');
 
     try {
-        await fileStorage.deleteFile(file.stored_name);
+        // Use storage_path (relative) to delete the file
+        await fileStorage.deleteFile(file.storage_path);
     } catch (err) {
         // if storage deletion fails, return the error
         throw err;

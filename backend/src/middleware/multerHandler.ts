@@ -4,13 +4,15 @@ import { FILES_DIR } from '../config/env';
 import { ValidationError } from './errors';
 import path from 'path';
 import crypto from 'crypto';
+import fs from 'fs';
+import { sanitizeFolderPath, resolveSecurePath } from '../utils/pathSanitizer';
 
 /**
  * multerHandler middleware
- * - Configures multer for local disk storage
+ * - Configures multer for local disk storage with subdirectory support
  * - Validates file size and allowed MIME types
- * - Stores files in the directory specified by FILES_DIR env var
- * - Generates unique filenames with timestamp prefix to avoid collisions
+ * - Stores files in FILES_DIR or subdirectories within it
+ * - Generates unique filenames with UUID to avoid collisions
  */
 
 // Maximum file size: 100MB
@@ -57,14 +59,32 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 /**
- * Configure multer disk storage
- * - destination: Save files to FILES_DIR
- * - filename: Generate unique names with timestamp prefix
+ * Configure multer disk storage with subdirectory support.
+ * - destination: Resolves to FILES_DIR or FILES_DIR/<folder> based on request
+ * - filename: Generate unique names with UUID + original extension
  */
 const storage = multer.diskStorage({
-    destination: (_req: Request, _file: Express.Multer.File, cb) => {
-        // Use the FILES_DIR from environment config
-        cb(null, FILES_DIR);
+    destination: (req: Request, _file: Express.Multer.File, cb) => {
+        try {
+            // Get folder from request body (multipart field)
+            const rawFolder = req.body?.folder as string | undefined;
+            const sanitizedFolder = sanitizeFolderPath(rawFolder);
+
+            // Resolve and validate destination path
+            const destPath = sanitizedFolder
+                ? resolveSecurePath(FILES_DIR, sanitizedFolder)
+                : FILES_DIR;
+
+            // Ensure directory exists (sync for multer callback)
+            fs.mkdirSync(destPath, { recursive: true });
+
+            // Store sanitized folder in request for controller access
+            (req as any).sanitizedFolder = sanitizedFolder;
+
+            cb(null, destPath);
+        } catch (err) {
+            cb(err instanceof Error ? err : new Error('Invalid folder path'), '');
+        }
     },
     filename: (_req: Request, file: Express.Multer.File, cb) => {
         // Generate a unique stored filename using random UUID + original extension

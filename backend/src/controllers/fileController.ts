@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { createReadStream } from 'fs';
 import crypto from 'crypto';
+import path from 'path';
 import { stat } from 'fs/promises';
 import * as fileStorage from '../utils/fileStorage';
 import { ValidationError, NotFoundError } from '../middleware/errors';
@@ -15,16 +16,16 @@ import {
 /**
  * Controller: File
  * - Handles file upload, listing, download, and deletion
- * - Uses fileStorage utility for file system operations
+ * - Supports storing files in subdirectories within FILES_DIR
  */
 
 /**
  * POST /api/files/upload
- * Upload a new file to storage
+ * Upload a new file to storage, optionally in a subdirectory.
  * 
  * @access Private (authenticated users)
  * @middleware multer - Handles multipart/form-data and file validation
- * @todo Add file metadata storage (owner, uploadDate, mimetype)
+ * @body folder - Optional subdirectory path (e.g., "projects/2024")
  */
 export async function uploadFile(req: Request, res: Response) {
     // Multer middleware attaches the file to req.file
@@ -34,16 +35,27 @@ export async function uploadFile(req: Request, res: Response) {
         throw new ValidationError('No file provided');
     }
 
-    // File is already saved by multer to FILES_DIR with unique name
-    info('File uploaded successfully', { filename: file.filename, originalName: file.originalname });
+    // Get sanitized folder from multer middleware (set in destination callback)
+    const sanitizedFolder = (req as any).sanitizedFolder as string || '';
+
+    // Build relative storage path: "folder/filename" or just "filename"
+    const storagePath = sanitizedFolder
+        ? path.posix.join(sanitizedFolder, file.filename)
+        : file.filename;
+
+    info('File uploaded successfully', {
+        filename: file.filename,
+        originalName: file.originalname,
+        folder: sanitizedFolder || '(root)',
+    });
 
     // Persist file metadata to DB
     try {
-        // compute sha256 of uploaded file for integrity/duplicate checks
-        const filePath = fileStorage.getFilePath(file.filename);
+        // Compute sha256 of uploaded file for integrity/duplicate checks
+        const absolutePath = fileStorage.getFilePath(storagePath);
         const sha256 = await (async () => {
             const h = crypto.createHash('sha256');
-            const stream = createReadStream(filePath);
+            const stream = createReadStream(absolutePath);
             for await (const chunk of stream) {
                 h.update(chunk);
             }
@@ -56,7 +68,7 @@ export async function uploadFile(req: Request, res: Response) {
             mimeType: file.mimetype,
             size: file.size,
             hashSha256: sha256,
-            storagePath: filePath,
+            storagePath: storagePath, // Relative path for portability
             ownerId: req.user?.id ?? null,
             isPublic: false,
         });
@@ -65,10 +77,10 @@ export async function uploadFile(req: Request, res: Response) {
     } catch (err) {
         // If DB insert fails, remove the stored file to avoid orphaned files
         try {
-            await fileStorage.deleteFile(file.filename);
+            await fileStorage.deleteFile(storagePath);
         } catch (delErr) {
             // Log cleanup failure, but don't mask the real error
-            info('Cleanup failure: failed to delete file after DB error', { filename: file.filename });
+            info('Cleanup failure: failed to delete file after DB error', { storagePath });
         }
         throw err;
     }
@@ -113,15 +125,18 @@ export async function downloadFileById(req: Request, res: Response) {
     const file = getFileByIdModel(id);
     if (!file) throw new NotFoundError('File not found');
 
-    const filePath = file.storage_path;
-    const stats = await stat(filePath);
+    // Resolve relative storage_path to absolute filesystem path
+    const absolutePath = fileStorage.getFilePath(file.storage_path);
+    const stats = await stat(absolutePath);
+
     // Set headers and stream
     res.setHeader('Content-Length', stats.size);
     res.setHeader('Content-Type', file.mime_type ?? 'application/octet-stream');
     res.setHeader('Content-Disposition', `inline; filename="${file.original_name}"`);
 
-    const fileStream = createReadStream(filePath);
+    const fileStream = createReadStream(absolutePath);
     fileStream.pipe(res);
-    // bump access, ignore errors
+
+    // Bump access, ignore errors
     try { bumpAccessModel(file.id); } catch (e) { /* ignore */ }
 }

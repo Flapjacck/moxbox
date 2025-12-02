@@ -1,6 +1,7 @@
 import express from 'express';
 import userRoutes from './userRoutes';
 import fileRoutes from './fileRoutes';
+import folderRoutes from './folderRoutes';
 import accountRoutes from './accountRoutes';
 
 const router = express.Router();
@@ -9,6 +10,7 @@ const router = express.Router();
 // TODO: Add authentication middleware where appropriate (e.g., `router.use(authenticate);`)
 router.use('/users', userRoutes);
 router.use('/files', fileRoutes);
+router.use('/folders', folderRoutes);
 router.use('/account', accountRoutes);
 
 // API root — returns high-level info about the API
@@ -20,6 +22,7 @@ router.get('/', (req, res) => {
             health: '/api/health',
             users: '/api/users',
             files: '/api/files',
+            folders: '/api/folders',
             account: '/api/account',
         },
     });
