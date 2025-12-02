@@ -15,7 +15,8 @@ interface FileListToolbarProps {
 	/** Search pattern setter */
 	setPattern: (s: string) => void;
 	/** Upload callback - receives file to upload */
-	onUpload?: (file: File) => Promise<void> | void;
+	onUpload?: (file: File, action?: 'replace' | 'keep_both') => Promise<void> | void;
+	onDuplicate?: (data: { conflict: any; file: File }) => void;
 	/** Refresh callback */
 	onRefresh?: () => void;
 	/** Item count to display */
@@ -36,6 +37,7 @@ export const FileListToolbar: FC<FileListToolbarProps> = ({
 	pattern,
 	setPattern,
 	onUpload,
+	onDuplicate,
 	onRefresh,
 	count,
 	isUploading = false,
@@ -100,6 +102,7 @@ export const FileListToolbar: FC<FileListToolbarProps> = ({
 						onUpload={onUpload}
 						disabled={isUploading}
 						label={isUploading ? 'Uploading...' : 'Upload'}
+						onDuplicate={onDuplicate}
 					/>
 				)}
 			</div>

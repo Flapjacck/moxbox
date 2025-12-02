@@ -69,7 +69,11 @@ const handleErrorResponse = async (response: Response): Promise<never> => {
         throw new Error('Session expired. Please log in again.');
     }
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Request failed. Please try again.');
+    const message = errorData.message || 'Request failed. Please try again.';
+    const err: any = new Error(message);
+    err.status = response.status;
+    err.payload = errorData;
+    throw err;
 };
 
 // ============================================
@@ -97,11 +101,12 @@ export const listFiles = async (status?: string): Promise<FileListResponse> => {
  * @param file - File object to upload
  * @param folder - Optional subfolder path within FILES_DIR
  */
-export const uploadFile = async (file: File, folder?: string): Promise<UploadResponse> => {
+export const uploadFile = async (file: File, folder?: string, action?: 'replace' | 'keep_both'): Promise<UploadResponse> => {
     const formData = new FormData();
     // IMPORTANT: folder must be appended BEFORE the file for multer to read it
     // in the destination callback (multipart fields are parsed in order)
     if (folder) formData.append('folder', folder);
+    if (action) formData.append('action', action);
     formData.append('file', file);
 
     // Note: Don't set Content-Type header for FormData; browser sets boundary

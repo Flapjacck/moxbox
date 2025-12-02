@@ -41,7 +41,7 @@ export interface UseFileBrowserActions {
     /** Refresh current view */
     refresh: () => Promise<void>;
     /** Upload a file to current folder */
-    upload: (file: File) => Promise<void>;
+    upload: (file: File, action?: 'replace' | 'keep_both') => Promise<void>;
     /** Download a file */
     download: (file: FileItem) => Promise<void>;
     /** Soft-delete a file (move to trash) */
@@ -137,13 +137,17 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
     }, [currentPath, fetchContents]);
 
     // Upload file to current folder
-    const upload = useCallback(async (file: File) => {
+    const upload = useCallback(async (file: File, action?: 'replace' | 'keep_both') => {
         setError(null);
         setIsLoading(true);
         try {
-            await uploadFile(file, currentPath || undefined);
+            await uploadFile(file, currentPath || undefined, action);
             await refresh();
         } catch (err) {
+            // If backend returned 409 conflict, bubble up the error so the caller can present a choice to the user
+            if ((err as any)?.status === 409) {
+                throw err;
+            }
             const msg = err instanceof Error ? err.message : 'Upload failed';
             setError(msg);
         } finally {
