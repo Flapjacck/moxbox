@@ -11,6 +11,7 @@ import {
     getFileById as getFileByIdModel,
     listFiles as listFilesModel,
     bumpAccess as bumpAccessModel,
+    getDeletedFileByOriginalNameAndFolder as getDeletedFileByOriginalNameAndFolderModel,
 } from '../models/files';
 
 /**
@@ -43,11 +44,21 @@ export async function uploadFile(req: Request, res: Response) {
         ? path.posix.join(sanitizedFolder, file.filename)
         : file.filename;
 
-    info('File uploaded successfully', {
+    info('File uploaded (received) — checking for conflicts', {
         filename: file.filename,
         originalName: file.originalname,
         folder: sanitizedFolder || '(root)',
     });
+
+    // If a deleted (trashed) file with the same original name exists in the
+    // same target folder, block this upload and return a friendly ValidationError.
+    const trashedConflict = getDeletedFileByOriginalNameAndFolderModel(file.originalname, sanitizedFolder || null);
+    if (trashedConflict) {
+        // Remove the uploaded file from storage to avoid orphaned files; log any cleanup failure
+        try { await fileStorage.deleteFile(storagePath); } catch (delErr) { info('Cleanup failure: failed to delete uploaded file after blocked upload (trashed duplicate)', { storagePath }); }
+        info('Upload blocked: file exists in trash', { originalName: file.originalname, folder: sanitizedFolder || '(root)', trashedId: trashedConflict.id });
+        throw new ValidationError(`Upload blocked: a file named '${file.originalname}' already exists in your Trash. Restore it from Trash, or rename the file and try again.`);
+    }
 
     // Persist file metadata to DB
     try {
