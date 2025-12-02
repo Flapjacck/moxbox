@@ -1,6 +1,6 @@
 import multer, { FileFilterCallback } from 'multer';
 import { Request } from 'express';
-import { FILES_DIR } from '../config/env';
+import { FILES_DIR, UPLOAD_MAX_FILE_SIZE, UPLOAD_DISALLOWED_MIME_TYPES } from '../config/env';
 import { ValidationError } from './errors';
 import path from 'path';
 import crypto from 'crypto';
@@ -10,54 +10,11 @@ import { sanitizeFolderPath, resolveSecurePath } from '../utils/pathSanitizer';
 /**
  * multerHandler middleware
  * - Configures multer for local disk storage with subdirectory support
- * - Validates file size and allowed MIME types
+ * - Uses a BLACKLIST approach: blocks specific dangerous MIME types, allows everything else
+ * - File size limit and disallowed types are configurable via environment variables
  * - Stores files in FILES_DIR or subdirectories within it
  * - Generates unique filenames with UUID to avoid collisions
  */
-
-// Maximum file size: 100MB
-const MAX_FILE_SIZE = 100 * 1024 * 1024;
-
-// Allowed MIME types for upload
-const ALLOWED_MIME_TYPES = [
-    // Images
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'image/svg+xml',
-    // Documents
-    'application/pdf',
-    'application/msword',
-    'application/vnd.ms-excel',
-    'application/vnd.ms-powerpoint',
-    // Text
-    'text/plain',
-    'text/csv',
-    'text/html',
-    'text/css',
-    'text/javascript',
-    'application/json',
-    'application/xml',
-    // Archives
-    'application/zip',
-    'application/x-7z-compressed',
-    'application/x-rar-compressed',
-    'application/x-tar',
-    'application/gzip',
-    // Video
-    'video/mp4',
-    'video/mpeg',
-    'video/quicktime',
-    'video/x-msvideo',
-    'video/x-matroska',
-    // Audio
-    'audio/mpeg',
-    'audio/wav',
-    'audio/ogg',
-    'audio/webm',
-];
-
 /**
  * Configure multer disk storage with subdirectory support.
  * - destination: Resolves to FILES_DIR or FILES_DIR/<folder> based on request
@@ -95,39 +52,44 @@ const storage = multer.diskStorage({
 });
 
 /**
- * File filter callback for multer
- * - Validates MIME type against allowed list
- * - Rejects files with disallowed types
+ * File filter callback for multer (BLACKLIST approach)
+ * - Rejects files if their MIME type is in the disallowed list
+ * - Accepts all other file types
+ * - This is a permissive approach suitable for personal/trusted environments
  */
 const fileFilter = (
     _req: Request,
     file: Express.Multer.File,
     cb: FileFilterCallback
 ): void => {
-    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-        // Accept the file
-        cb(null, true);
-    } else {
+    // Normalize MIME type to lowercase for comparison
+    const mimeType = file.mimetype.toLowerCase();
+
+    // Check if the file's MIME type is in the blacklist
+    if (UPLOAD_DISALLOWED_MIME_TYPES.includes(mimeType)) {
         // Reject the file with a validation error
         cb(
             new ValidationError(
-                `File type not allowed: ${file.mimetype}. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`
+                `File type not allowed: ${file.mimetype}. Blocked types: ${UPLOAD_DISALLOWED_MIME_TYPES.join(', ')}`
             )
         );
+    } else {
+        // Accept the file (not in blacklist)
+        cb(null, true);
     }
 };
 
 /**
  * Multer instance configured with:
  * - Local disk storage
- * - File size limit
- * - MIME type validation
+ * - File size limit (from UPLOAD_MAX_FILE_SIZE env var)
+ * - MIME type blacklist validation (from UPLOAD_DISALLOWED_MIME_TYPES env var)
  */
 const upload = multer({
     storage,
     fileFilter,
     limits: {
-        fileSize: MAX_FILE_SIZE,
+        fileSize: UPLOAD_MAX_FILE_SIZE,
     },
 });
 
