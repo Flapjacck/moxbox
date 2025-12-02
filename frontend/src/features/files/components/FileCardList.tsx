@@ -55,6 +55,21 @@ export const FileCardList: FC<FileCardListInternalProps> = ({
             {file.size ? formatFileSize(file.size) : '—'}
           </div>
         </div>
+        {/* Show folder/dir path when file is in Trash to disambiguate similarly-named files */}
+        {isDeleted && (
+          <div
+            className="text-sm text-[#8B949E] mt-1 truncate"
+            title={
+              file.storagePath?.split('/').slice(0, -1).join('/')
+                ? `{root}/${file.storagePath?.split('/').slice(0, -1).join('/')}`
+                : '{root}'
+            }
+          >
+            {file.storagePath?.split('/').slice(0, -1).join('/')
+              ? `{root}/${file.storagePath?.split('/').slice(0, -1).join('/')}`
+              : '{root}'}
+          </div>
+        )}
         <div className="text-sm text-[#8B949E] mt-1">
           {formatDate(file.createdAt)}
         </div>
