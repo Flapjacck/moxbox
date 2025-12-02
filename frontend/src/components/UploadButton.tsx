@@ -44,10 +44,17 @@ export const UploadButton: FC<UploadButtonProps> = ({
         if (!files || files.length === 0) return;
 
         const file = files[0];
-        await onUpload(file);
-
-        // Reset input to allow re-uploading same file
-        e.currentTarget.value = '';
+        try {
+            await onUpload(file);
+        } finally {
+            // Reset input to allow re-uploading same file, even if upload fails
+            // Use the ref when available to ensure we're clearing the actual element
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            } else {
+                try { e.currentTarget.value = ''; } catch (_) { /* ignore */ }
+            }
+        }
     };
 
     return (
