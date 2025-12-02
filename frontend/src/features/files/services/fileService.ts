@@ -70,10 +70,11 @@ const handleErrorResponse = async (response: Response): Promise<never> => {
     }
     const errorData = await response.json().catch(() => ({}));
     const message = errorData.message || 'Request failed. Please try again.';
-    const err: any = new Error(message);
-    err.status = response.status;
-    err.payload = errorData;
-    throw err;
+    type ApiError = Error & { status?: number; payload?: unknown };
+    const apiErr = new Error(message) as ApiError;
+    apiErr.status = response.status;
+    apiErr.payload = errorData;
+    throw apiErr;
 };
 
 // ============================================

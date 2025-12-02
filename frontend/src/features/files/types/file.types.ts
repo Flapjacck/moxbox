@@ -72,6 +72,13 @@ export interface UploadResponse {
     file: FileItem;
 }
 
+/** Conflict payload returned by backend when upload results in a 409 */
+export interface ConflictPayload {
+    id: string;
+    originalName: string;
+    storagePath?: string;
+}
+
 /** Response from soft-delete/restore operations */
 export interface FileActionResponse {
     message: string;

@@ -1,4 +1,5 @@
 import { useRef, type FC, type ChangeEvent } from 'react';
+import type { ConflictPayload } from '../features/files/types/file.types';
 import { UploadCloud } from 'lucide-react';
 
 /**
@@ -16,7 +17,7 @@ interface UploadButtonProps {
     /** Accept attribute for file input (e.g., "image/*") */
     accept?: string;
     /** callback when an upload conflict occurs, receives the conflict payload and original file */
-    onDuplicate?: (data: { conflict: any; file: File }) => void;
+    onDuplicate?: (data: { conflict: ConflictPayload | null; file: File }) => void;
 }
 
 /**
@@ -49,12 +50,14 @@ export const UploadButton: FC<UploadButtonProps> = ({
         const file = files[0];
         try {
             await onUpload(file);
-        } catch (err) {
-            // If the backend returned a 409 conflict, notify the parent via onDuplicate
-            if ((err as any)?.status === 409 && onDuplicate) {
-                try { onDuplicate({ conflict: (err as any).payload?.conflict ?? null, file }); } catch (e) { /* ignore */ }
-                return;
-            }
+        } catch (err: unknown) {
+                // If the backend returned a 409 conflict, notify the parent via onDuplicate
+                type ApiError = Error & { status?: number; payload?: { conflict?: ConflictPayload } };
+                const isApiError = (v: unknown): v is ApiError => typeof v === 'object' && v !== null && 'status' in (v as Record<string, unknown>);
+                if (isApiError(err) && err.status === 409 && onDuplicate) {
+                    try { onDuplicate({ conflict: err.payload?.conflict ?? null, file }); } catch { /* ignore */ }
+                    return;
+                }
             throw err;
         } finally {
             // Reset input to allow re-uploading same file, even if upload fails
