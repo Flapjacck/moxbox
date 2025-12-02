@@ -91,25 +91,23 @@ export async function uploadFile(req: Request, res: Response) {
  * List all files in storage
  * 
  * @access Private (authenticated users)
- * @todo Add pagination support (offset, limit)
- * @todo Add filtering by pattern, mimetype, owner
- * @todo Return metadata (size, uploadDate, owner, mimetype)
+ * @query status - Filter by status ('active' or 'deleted'), defaults to 'active'
+ * @query ownerId - Filter by owner (defaults to current user)
+ * @query isPublic - Filter by public visibility
+ * @query limit - Pagination limit
+ * @query offset - Pagination offset
  */
 export async function listFiles(req: Request, res: Response) {
-    // Optional pattern filter from query params
-    const pattern = req.query.pattern as string | undefined;
-    const filter = pattern ? { pattern } : undefined;
-
-
-    // Support optional query params for ownerId and isPublic (for now read from query)
+    // Support optional query params for filtering
     const ownerId = req.query.ownerId as string | undefined || req.user?.id;
     const isPublic = req.query.isPublic ? req.query.isPublic === 'true' : undefined;
+    const status = (req.query.status as 'active' | 'deleted') || 'active';
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
     const offset = req.query.offset ? Number(req.query.offset) : undefined;
 
-    const files = listFilesModel({ ownerId, isPublic, limit, offset });
+    const files = listFilesModel({ ownerId, isPublic, status, limit, offset });
 
-    info('Files listed successfully', { count: files.length });
+    info('Files listed successfully', { count: files.length, status });
 
     return res.status(200).json({ files });
 }
