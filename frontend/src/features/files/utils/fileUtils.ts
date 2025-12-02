@@ -23,6 +23,40 @@ export function inferFileType(name: string): FileType {
     return 'other';
 }
 
+/**
+ * formatFileSize
+ * Converts bytes to a human-readable string (KB, MB, GB).
+ * @param bytes - File size in bytes
+ */
+export function formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    const size = bytes / Math.pow(1024, i);
+    return `${size.toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
+}
+
+/**
+ * formatDate
+ * Formats an ISO date string to a readable local date.
+ * @param isoString - ISO 8601 date string from backend
+ */
+export function formatDate(isoString: string | null): string {
+    if (!isoString) return 'Unknown date';
+    try {
+        const date = new Date(isoString);
+        return date.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+        });
+    } catch {
+        return 'Invalid date';
+    }
+}
+
 export default {
     inferFileType,
+    formatFileSize,
+    formatDate,
 };
