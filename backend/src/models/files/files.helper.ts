@@ -146,13 +146,21 @@ export function getFileByStoredName(storedName: string): FileRecord | null {
 
 /**
  * listFiles
- * - List files with optional filters and pagination. Always filters to
- *   `status = 'active'` unless otherwise updated in DB.
+ * - List files with optional filters and pagination.
+ * - Supports filtering by status ('active' or 'deleted') for trash feature.
+ * - Defaults to 'active' if no status is provided.
  */
-export function listFiles(options?: { ownerId?: string; isPublic?: boolean; limit?: number; offset?: number }) {
+export function listFiles(options?: {
+    ownerId?: string;
+    isPublic?: boolean;
+    status?: 'active' | 'deleted';
+    limit?: number;
+    offset?: number;
+}) {
     const db = getDatabase();
-    let sql = 'SELECT * FROM files WHERE status = \'active\'';
-    const params: any[] = [];
+    const status = options?.status ?? 'active';
+    let sql = `SELECT * FROM files WHERE status = ?`;
+    const params: any[] = [status];
     if (options?.ownerId) {
         sql += ' AND owner_id = ?';
         params.push(options.ownerId);
