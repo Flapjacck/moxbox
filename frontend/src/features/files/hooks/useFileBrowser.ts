@@ -6,8 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { listFolderContents } from '../../folders/services/folderService';
 import { listFiles, uploadFiles as uploadFilesService } from '../services/fileService';
 import { useFileOperations, type PendingBatchUpload } from './useFileOperations';
-import { buildBreadcrumbs, getParentPath } from '../../../utils/breadcrumbs';
-import { isApiError, getErrorMessage } from '../../../utils/apiHelpers';
+import { buildBreadcrumbs, getParentPath, isApiError, getErrorMessage } from '../../../utils';
 import type { FileItem, BatchUploadResponse } from '../types/file.types';
 import type { DirectoryEntry, BreadcrumbSegment } from '../../folders/types/folder.types';
 

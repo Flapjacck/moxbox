@@ -9,7 +9,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { listFiles } from '../services/fileService';
 import { useFileOperations } from './useFileOperations';
-import { getErrorMessage } from '../../../utils/apiHelpers';
+import { getErrorMessage } from '../../../utils';
 import type { FileItem } from '../types/file.types';
 
 // ============================================

@@ -6,7 +6,7 @@
  */
 
 import { apiFetch } from '../../../api';
-import { getAuthHeaders, getAuthJsonHeaders, handleErrorResponse } from '../../../utils/apiHelpers';
+import { getAuthHeaders, getAuthJsonHeaders, handleErrorResponse } from '../../../utils';
 import type {
     FolderListResponse,
     CreateFolderResponse,

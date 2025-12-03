@@ -7,7 +7,7 @@
  */
 
 import { apiFetch } from '../../../api';
-import { getAuthHeaders, handleErrorResponse } from '../../../utils/apiHelpers';
+import { getAuthHeaders, handleErrorResponse } from '../../../utils';
 import type {
     FileItem,
     FileListResponse,
