@@ -4,15 +4,14 @@ import authenticate from '../middleware/authenticate';
 import upload from '../middleware/multerHandler';
 import {
     uploadFile,
+    uploadFiles,
     listFiles,
     downloadFileById,
-} from '../controllers/fileController';
-import {
     updateFileMetadata,
     softDeleteFile,
     restoreFile,
     permanentDeleteById,
-} from '../controllers/fileAdminController';
+} from '../controllers/files';
 
 const router = express.Router();
 
@@ -33,6 +32,18 @@ const router = express.Router();
  * @body    action - Optional upload action when a duplicate exists: 'replace'|'keep_both'
  */
 router.post('/upload', authenticate, upload.single('file'), asyncHandler(uploadFile));
+
+/**
+ * @route   POST /api/files/upload/batch
+ * @desc    Upload multiple files at once, preserving folder structure
+ * @access  Private (authenticated users)
+ * @middleware multer.array - Handles multiple files in multipart/form-data
+ * @body    file[] - Array of files to upload
+ * @body    relativePath[] - Array of relative paths (from webkitRelativePath) matching file order
+ * @body    folder - Optional base folder to upload into
+ * @returns { message, totalCount, successCount, failureCount, results[] }
+ */
+router.post('/upload/batch', authenticate, upload.array('file'), asyncHandler(uploadFiles));
 
 /**
  * @route   GET /api/files
