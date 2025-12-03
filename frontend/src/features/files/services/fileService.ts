@@ -7,7 +7,7 @@
  */
 
 import { apiFetch } from '../../../api';
-import { getToken, clearToken } from '../../auth/services/authService';
+import { getAuthHeaders, handleErrorResponse } from '../../../utils/apiHelpers';
 import type {
     FileItem,
     FileListResponse,
@@ -44,39 +44,7 @@ const mapFileRecord = (record: Record<string, unknown>): FileItem => ({
     updatedAt: record.updated_at as string | null,
 });
 
-// ============================================
-// Helper Functions
-// ============================================
 
-/**
- * Gets authorization headers with current token.
- * @throws Error if no token is available
- */
-const getAuthHeaders = (): HeadersInit => {
-    const token = getToken();
-    if (!token) {
-        throw new Error('Not authenticated. Please log in.');
-    }
-    return { Authorization: `Bearer ${token}` };
-};
-
-/**
- * Handles API error responses consistently.
- * Clears token on 401 (session expired).
- */
-const handleErrorResponse = async (response: Response): Promise<never> => {
-    if (response.status === 401) {
-        clearToken();
-        throw new Error('Session expired. Please log in again.');
-    }
-    const errorData = await response.json().catch(() => ({}));
-    const message = errorData.message || 'Request failed. Please try again.';
-    type ApiError = Error & { status?: number; payload?: unknown };
-    const apiErr = new Error(message) as ApiError;
-    apiErr.status = response.status;
-    apiErr.payload = errorData;
-    throw apiErr;
-};
 
 // ============================================
 // API Calls

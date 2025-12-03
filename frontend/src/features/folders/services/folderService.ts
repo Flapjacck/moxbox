@@ -6,7 +6,7 @@
  */
 
 import { apiFetch } from '../../../api';
-import { getToken, clearToken } from '../../auth/services/authService';
+import { getAuthHeaders, getAuthJsonHeaders, handleErrorResponse } from '../../../utils/apiHelpers';
 import type {
     FolderListResponse,
     CreateFolderResponse,
@@ -14,37 +14,7 @@ import type {
     DeleteFolderResponse,
 } from '../types/folder.types';
 
-// ============================================
-// Helper Functions
-// ============================================
 
-/**
- * Gets authorization headers with current token.
- * @throws Error if no token is available
- */
-const getAuthHeaders = (): HeadersInit => {
-    const token = getToken();
-    if (!token) {
-        throw new Error('Not authenticated. Please log in.');
-    }
-    return {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-    };
-};
-
-/**
- * Handles API error responses consistently.
- * Clears token on 401 (session expired).
- */
-const handleErrorResponse = async (response: Response): Promise<never> => {
-    if (response.status === 401) {
-        clearToken();
-        throw new Error('Session expired. Please log in again.');
-    }
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Request failed. Please try again.');
-};
 
 // ============================================
 // API Calls
@@ -72,7 +42,7 @@ export const listFolderContents = async (path: string = ''): Promise<FolderListR
 export const createFolder = async (path: string): Promise<CreateFolderResponse> => {
     const response = await apiFetch('/folders', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthJsonHeaders(),
         body: JSON.stringify({ path }),
     });
 
@@ -91,7 +61,7 @@ export const renameFolder = async (
 ): Promise<RenameFolderResponse> => {
     const response = await apiFetch('/folders/rename', {
         method: 'PATCH',
-        headers: getAuthHeaders(),
+        headers: getAuthJsonHeaders(),
         body: JSON.stringify({ oldPath, newPath }),
     });
 
@@ -106,7 +76,7 @@ export const renameFolder = async (
 export const deleteFolder = async (path: string): Promise<DeleteFolderResponse> => {
     const response = await apiFetch('/folders', {
         method: 'DELETE',
-        headers: getAuthHeaders(),
+        headers: getAuthJsonHeaders(),
         body: JSON.stringify({ path }),
     });
 
