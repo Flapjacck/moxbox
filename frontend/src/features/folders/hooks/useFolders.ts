@@ -12,6 +12,8 @@ import {
     renameFolder,
     deleteFolder,
 } from '../services/folderService';
+import { buildBreadcrumbs, getParentPath } from '../../../utils/breadcrumbs';
+import { getErrorMessage } from '../../../utils/apiHelpers';
 import type { DirectoryEntry, BreadcrumbSegment } from '../types/folder.types';
 
 /** State shape returned by the hook */
@@ -46,24 +48,6 @@ export interface UseFoldersActions {
     clearError: () => void;
 }
 
-/**
- * Builds breadcrumb segments from a path string.
- * @param path - Current folder path (e.g., "projects/2024/docs")
- */
-const buildBreadcrumbs = (path: string): BreadcrumbSegment[] => {
-    const segments: BreadcrumbSegment[] = [{ name: 'Home', path: '' }];
-    if (!path) return segments;
-
-    const parts = path.split('/').filter(Boolean);
-    let currentPath = '';
-
-    for (const part of parts) {
-        currentPath = currentPath ? `${currentPath}/${part}` : part;
-        segments.push({ name: part, path: currentPath });
-    }
-
-    return segments;
-};
 
 /**
  * Hook for managing folder navigation and operations.
@@ -86,8 +70,7 @@ export const useFolders = (): UseFoldersState & UseFoldersActions => {
             setCurrentPath(path);
             setContents(response.contents);
         } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Failed to load folder';
-            setError(msg);
+            setError(getErrorMessage(err, 'Failed to load folder'));
         } finally {
             setIsLoading(false);
         }
@@ -96,8 +79,7 @@ export const useFolders = (): UseFoldersState & UseFoldersActions => {
     // Navigate up one level
     const navigateUp = useCallback(async () => {
         if (!currentPath) return; // Already at root
-        const parentPath = currentPath.split('/').slice(0, -1).join('/');
-        await navigateTo(parentPath);
+        await navigateTo(getParentPath(currentPath));
     }, [currentPath, navigateTo]);
 
     // Refresh current folder contents
@@ -113,8 +95,7 @@ export const useFolders = (): UseFoldersState & UseFoldersActions => {
             await createFolder(fullPath);
             await refresh();
         } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Failed to create folder';
-            setError(msg);
+            setError(getErrorMessage(err, 'Failed to create folder'));
         } finally {
             setIsLoading(false);
         }
@@ -125,13 +106,12 @@ export const useFolders = (): UseFoldersState & UseFoldersActions => {
         setError(null);
         setIsLoading(true);
         try {
-            const parentPath = oldPath.split('/').slice(0, -1).join('/');
+            const parentPath = getParentPath(oldPath);
             const newPath = parentPath ? `${parentPath}/${newName}` : newName;
             await renameFolder(oldPath, newPath);
             await refresh();
         } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Failed to rename folder';
-            setError(msg);
+            setError(getErrorMessage(err, 'Failed to rename folder'));
         } finally {
             setIsLoading(false);
         }
@@ -145,8 +125,7 @@ export const useFolders = (): UseFoldersState & UseFoldersActions => {
             await deleteFolder(path);
             await refresh();
         } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Failed to delete folder';
-            setError(msg);
+            setError(getErrorMessage(err, 'Failed to delete folder'));
         } finally {
             setIsLoading(false);
         }
