@@ -10,21 +10,65 @@ import { sanitizeFolderPath, resolveSecurePath } from '../utils/pathSanitizer';
 /**
  * multerHandler middleware
  * - Configures multer for local disk storage with subdirectory support
- * - Uses a BLACKLIST approach: blocks specific dangerous MIME types, allows everything else
- * - File size limit and disallowed types are configurable via environment variables
+ * - Supports single-file and multi-file (folder) uploads
+ * - Uses a BLACKLIST approach: blocks specific dangerous MIME types
+ * - File size limit configurable via environment variables
  * - Stores files in FILES_DIR or subdirectories within it
  * - Generates unique filenames with UUID to avoid collisions
+ * - Multi-file uploads preserve client-side folder structure via relativePath field
  */
+
+/**
+ * Extracts the folder portion from a relative path (e.g., "docs/notes/file.txt" -> "docs/notes").
+ * Used for multi-file uploads where client sends file.webkitRelativePath.
+ */
+function extractFolderFromRelativePath(relativePath: string | undefined): string {
+    if (!relativePath) return '';
+    // Normalize separators and get directory portion
+    const normalized = relativePath.replace(/\\/g, '/');
+    const lastSlash = normalized.lastIndexOf('/');
+    return lastSlash > 0 ? normalized.substring(0, lastSlash) : '';
+}
+
 /**
  * Configure multer disk storage with subdirectory support.
  * - destination: Resolves to FILES_DIR or FILES_DIR/<folder> based on request
+ * - For multi-file uploads, reads per-file relativePath to compute destination
  * - filename: Generate unique names with UUID + original extension
  */
 const storage = multer.diskStorage({
-    destination: (req: Request, _file: Express.Multer.File, cb) => {
+    destination: (req: Request, file: Express.Multer.File, cb) => {
         try {
-            // Get folder from request body (multipart field)
-            const rawFolder = req.body?.folder as string | undefined;
+            // For multi-file uploads, relativePaths is an array sent before files
+            // We track which file index we're on via req.fileIndex
+            const fileIndex = (req as any).fileIndex ?? 0;
+            (req as any).fileIndex = fileIndex + 1;
+
+            // Get per-file relativePath from array (batch) or single folder field
+            const relativePaths = req.body?.relativePath;
+            const folders = req.body?.folder;
+
+            let rawFolder: string | undefined;
+
+            if (Array.isArray(relativePaths) && relativePaths[fileIndex]) {
+                // Multi-file upload: extract folder from relativePath
+                rawFolder = extractFolderFromRelativePath(relativePaths[fileIndex]);
+                // Combine with base folder if provided
+                const baseFolder = Array.isArray(folders) ? folders[0] : folders;
+                if (baseFolder) {
+                    rawFolder = rawFolder ? `${baseFolder}/${rawFolder}` : baseFolder;
+                }
+            } else if (typeof relativePaths === 'string' && relativePaths) {
+                // Single file with relativePath
+                rawFolder = extractFolderFromRelativePath(relativePaths);
+                if (folders) {
+                    rawFolder = rawFolder ? `${folders}/${rawFolder}` : folders;
+                }
+            } else {
+                // Fallback to folder field (single upload or no relativePath)
+                rawFolder = Array.isArray(folders) ? folders[fileIndex] || folders[0] : folders;
+            }
+
             const sanitizedFolder = sanitizeFolderPath(rawFolder);
 
             // Resolve and validate destination path
@@ -35,7 +79,13 @@ const storage = multer.diskStorage({
             // Ensure directory exists (sync for multer callback)
             fs.mkdirSync(destPath, { recursive: true });
 
-            // Store sanitized folder in request for controller access
+            // Store sanitized folder per-file in an array for controller access
+            if (!(req as any).sanitizedFolders) {
+                (req as any).sanitizedFolders = [];
+            }
+            (req as any).sanitizedFolders.push(sanitizedFolder);
+
+            // Keep backward compat: also set sanitizedFolder for single-file uploads
             (req as any).sanitizedFolder = sanitizedFolder;
 
             cb(null, destPath);
