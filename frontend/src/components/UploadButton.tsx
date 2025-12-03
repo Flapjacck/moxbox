@@ -1,5 +1,6 @@
 import { useRef, type FC, type ChangeEvent } from 'react';
 import type { ConflictPayload, BatchUploadResponse } from '../features/files/types/file.types';
+import { isApiError } from '../utils';
 import { UploadCloud, FolderUp } from 'lucide-react';
 
 /**
@@ -71,9 +72,6 @@ export const UploadButton: FC<UploadButtonProps> = ({
             }
         } catch (err: unknown) {
             // If the backend returned a 409 conflict, notify the parent via onDuplicate
-            type ApiError = Error & { status?: number; payload?: { conflict?: ConflictPayload } };
-            const isApiError = (v: unknown): v is ApiError =>
-                typeof v === 'object' && v !== null && 'status' in (v as Record<string, unknown>);
             if (isApiError(err) && err.status === 409 && onDuplicate && files.length === 1) {
                 try {
                     onDuplicate({ conflict: err.payload?.conflict ?? null, file: files[0] });

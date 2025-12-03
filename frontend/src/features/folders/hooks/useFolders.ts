@@ -12,8 +12,7 @@ import {
     renameFolder,
     deleteFolder,
 } from '../services/folderService';
-import { buildBreadcrumbs, getParentPath } from '../../../utils/breadcrumbs';
-import { getErrorMessage } from '../../../utils/apiHelpers';
+import { buildBreadcrumbs, getParentPath, getErrorMessage } from '../../../utils';
 import type { DirectoryEntry, BreadcrumbSegment } from '../types/folder.types';
 
 /** State shape returned by the hook */
