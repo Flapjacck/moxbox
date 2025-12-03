@@ -3,6 +3,7 @@
  * ====================
  * Combined hook for file and folder browsing.
  * Manages navigation, file operations, and folder operations in one place.
+ * Supports single-file and batch (folder) uploads.
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -10,11 +11,19 @@ import { listFolderContents } from '../../folders/services/folderService';
 import {
     listFiles,
     uploadFile,
+    uploadFiles as uploadFilesService,
     downloadFileById,
     softDeleteFile,
 } from '../services/fileService';
-import type { FileItem } from '../types/file.types';
+import type { FileItem, BatchUploadResponse, BatchConflictInfo } from '../types/file.types';
 import type { DirectoryEntry, BreadcrumbSegment } from '../../folders/types/folder.types';
+
+/** Pending batch upload waiting for conflict resolution */
+export interface PendingBatchUpload {
+    files: File[];
+    conflicts: BatchConflictInfo[];
+    totalFiles: number;
+}
 
 /** State shape for file browser */
 export interface UseFileBrowserState {
@@ -30,6 +39,10 @@ export interface UseFileBrowserState {
     isLoading: boolean;
     /** Error message */
     error: string | null;
+    /** Last batch upload result (for showing summary) */
+    lastBatchResult: BatchUploadResponse | null;
+    /** Pending batch upload with conflicts awaiting user action */
+    pendingBatchUpload: PendingBatchUpload | null;
 }
 
 /** Actions for file browser */
@@ -40,14 +53,22 @@ export interface UseFileBrowserActions {
     navigateUp: () => Promise<void>;
     /** Refresh current view */
     refresh: () => Promise<void>;
-    /** Upload a file to current folder */
+    /** Upload a single file to current folder */
     upload: (file: File, action?: 'replace' | 'keep_both') => Promise<void>;
+    /** Upload multiple files to current folder (preserves structure) */
+    uploadMultiple: (files: File[], action?: 'replace' | 'keep_both') => Promise<BatchUploadResponse | null>;
+    /** Resolve pending batch upload conflicts */
+    resolveBatchConflict: (action: 'replace' | 'keep_both') => Promise<void>;
+    /** Cancel pending batch upload */
+    cancelBatchUpload: () => void;
     /** Download a file */
     download: (file: FileItem) => Promise<void>;
     /** Soft-delete a file (move to trash) */
     remove: (file: FileItem) => Promise<void>;
     /** Clear error */
     clearError: () => void;
+    /** Clear last batch result */
+    clearBatchResult: () => void;
 }
 
 /**
@@ -78,6 +99,8 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
     const [folders, setFolders] = useState<DirectoryEntry[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [lastBatchResult, setLastBatchResult] = useState<BatchUploadResponse | null>(null);
+    const [pendingBatchUpload, setPendingBatchUpload] = useState<PendingBatchUpload | null>(null);
 
     // Build breadcrumbs
     const breadcrumbs = buildBreadcrumbs(currentPath);
@@ -189,8 +212,85 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
         }
     }, [refresh]);
 
+    // Upload multiple files (batch/folder upload)
+    const uploadMultiple = useCallback(async (
+        files: File[],
+        action?: 'replace' | 'keep_both'
+    ): Promise<BatchUploadResponse | null> => {
+        setError(null);
+        setLastBatchResult(null);
+        setIsLoading(true);
+        try {
+            const result = await uploadFilesService(files, currentPath || undefined, action);
+            setLastBatchResult(result);
+            setPendingBatchUpload(null);
+            await refresh();
+            return result;
+        } catch (err: unknown) {
+            // Check if this is a 409 conflict response
+            type ApiError = Error & { status?: number; payload?: { conflicts?: BatchConflictInfo[]; totalFiles?: number; trashedConflicts?: string[] } };
+            const isApiError = (v: unknown): v is ApiError =>
+                typeof v === 'object' && v !== null && 'status' in (v as Record<string, unknown>);
+
+            if (isApiError(err) && err.status === 409 && err.payload?.conflicts) {
+                // Store pending upload for user resolution
+                setPendingBatchUpload({
+                    files,
+                    conflicts: err.payload.conflicts,
+                    totalFiles: err.payload.totalFiles || files.length,
+                });
+                setIsLoading(false);
+                return null; // Signal that conflicts need resolution
+            }
+
+            // Handle trashed conflicts
+            if (isApiError(err) && err.status === 409 && err.payload?.trashedConflicts) {
+                setError(`Some files exist in Trash: ${err.payload.trashedConflicts.join(', ')}. Remove them from Trash first.`);
+                setIsLoading(false);
+                return null;
+            }
+
+            const msg = err instanceof Error ? err.message : 'Batch upload failed';
+            setError(msg);
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [currentPath, refresh]);
+
+    // Resolve pending batch upload conflicts
+    const resolveBatchConflict = useCallback(async (action: 'replace' | 'keep_both') => {
+        if (!pendingBatchUpload) return;
+
+        setIsLoading(true);
+        try {
+            const result = await uploadFilesService(
+                pendingBatchUpload.files,
+                currentPath || undefined,
+                action
+            );
+            setLastBatchResult(result);
+            setPendingBatchUpload(null);
+            await refresh();
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Upload failed';
+            setError(msg);
+            setPendingBatchUpload(null);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [pendingBatchUpload, currentPath, refresh]);
+
+    // Cancel pending batch upload
+    const cancelBatchUpload = useCallback(() => {
+        setPendingBatchUpload(null);
+    }, []);
+
     // Clear error
     const clearError = useCallback(() => setError(null), []);
+
+    // Clear last batch result
+    const clearBatchResult = useCallback(() => setLastBatchResult(null), []);
 
     // Fetch contents on mount
     useEffect(() => {
@@ -204,12 +304,18 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
         breadcrumbs,
         isLoading,
         error,
+        lastBatchResult,
+        pendingBatchUpload,
         navigateTo,
         navigateUp,
         refresh,
         upload,
+        uploadMultiple,
+        resolveBatchConflict,
+        cancelBatchUpload,
         download,
         remove,
         clearError,
+        clearBatchResult,
     };
 };
