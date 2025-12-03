@@ -1,7 +1,7 @@
 import type { FC } from 'react';
 import { List, Grid, RefreshCw } from 'lucide-react';
 import { UploadButton } from '../../../components/UploadButton';
-import type { ConflictPayload } from '../types/file.types';
+import type { ConflictPayload, BatchUploadResponse } from '../types/file.types';
 
 /**
  * FileListToolbar Props
@@ -15,8 +15,10 @@ interface FileListToolbarProps {
 	pattern: string;
 	/** Search pattern setter */
 	setPattern: (s: string) => void;
-	/** Upload callback - receives file to upload */
+	/** Upload callback - receives file to upload (single file) */
 	onUpload?: (file: File, action?: 'replace' | 'keep_both') => Promise<void> | void;
+	/** Upload callback for multiple files (folder upload) */
+	onUploadMultiple?: (files: File[]) => Promise<BatchUploadResponse | null> | void;
 	onDuplicate?: (data: { conflict: ConflictPayload | null; file: File }) => void;
 	/** Refresh callback */
 	onRefresh?: () => void;
@@ -30,6 +32,7 @@ interface FileListToolbarProps {
  * FileListToolbar Component
  * =========================
  * Toolbar for file dashboard with search, view toggle, and upload.
+ * Supports single file, multiple files, and folder uploads.
  * Delegates actual operations to parent via props.
  */
 export const FileListToolbar: FC<FileListToolbarProps> = ({
@@ -38,6 +41,7 @@ export const FileListToolbar: FC<FileListToolbarProps> = ({
 	pattern,
 	setPattern,
 	onUpload,
+	onUploadMultiple,
 	onDuplicate,
 	onRefresh,
 	count,
@@ -97,13 +101,15 @@ export const FileListToolbar: FC<FileListToolbarProps> = ({
 					</button>
 				</div>
 
-				{/* Upload button */}
+				{/* Upload button with folder support */}
 				{onUpload && (
 					<UploadButton
 						onUpload={onUpload}
+						onUploadMultiple={onUploadMultiple}
 						disabled={isUploading}
 						label={isUploading ? 'Uploading...' : 'Upload'}
 						onDuplicate={onDuplicate}
+						allowFolderUpload={!!onUploadMultiple}
 					/>
 				)}
 			</div>
