@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { FILES_DIR } from '../config/env';
-import { FileStorageError, FileNotFoundError } from '../middleware/errors';
+import { FileStorageError, FileNotFoundError, ValidationError } from '../middleware/errors';
 import * as logger from './logger';
 import { resolveSecurePath } from './pathSanitizer';
 
@@ -159,8 +159,26 @@ export async function deleteFolder(folderPath: string): Promise<void> {
     }
 
     try {
+        // If the directory contains any files or subfolders, don't attempt
+        // to remove it — return a ValidationError to the client instead
+        const contents = await listDirectoryContents(folderPath);
+        if (contents.length > 0) {
+            throw new ValidationError('Cannot delete folder: it is not empty. Remove files (including items in trash) before deleting the folder.');
+        }
+
         await fs.rmdir(absPath);
     } catch (err) {
+        // If directory is not empty, throw a validation error so the frontend
+        // can display a friendly message. Avoid logging here to prevent duplicate
+        // error messages (the centralized error handler logs all thrown errors).
+        if (err && typeof err === 'object' && (err as any).code === 'ENOTEMPTY') {
+            // In case of a race condition where the directory is emptied after
+            // the existence check above, map the filesystem error to a
+            // user-friendly ValidationError as well.
+            throw new ValidationError('Cannot delete folder: it is not empty. Remove files (including items in trash) before deleting the folder.');
+        }
+
+        // For other errors, log and rethrow as FileStorageError
         logger.error(`Failed to delete folder: ${folderPath}`, err);
         throw new FileStorageError(
             `Failed to delete folder: ${err instanceof Error ? err.message : 'Unknown error'}`

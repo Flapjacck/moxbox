@@ -60,10 +60,11 @@ export const FileDashboard = () => {
     download,
     remove,
     clearBatchResult,
+    clearError: clearFileError,
   } = useFileBrowser();
 
   // Folder operations
-  const { create: createFolder, remove: deleteFolder } = useFolders();
+  const { create: createFolder, remove: deleteFolder, error: foldersError, clearError: clearFoldersError } = useFolders();
 
   // ----------------------------------------
   // Filtering
@@ -133,7 +134,12 @@ export const FileDashboard = () => {
       <Breadcrumbs segments={breadcrumbs} onNavigate={navigateTo} className="mb-4" />
 
       {/* Error notification */}
-      {error && <ErrorNotification message={error} />}
+      {(error || foldersError) && (
+        <ErrorNotification
+          message={error || foldersError || ''}
+          onDismiss={error ? clearFileError : clearFoldersError}
+        />
+      )}
 
       {/* Batch upload result */}
       {lastBatchResult && (
