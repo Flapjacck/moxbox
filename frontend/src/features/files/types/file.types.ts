@@ -72,6 +72,40 @@ export interface UploadResponse {
     file: FileItem;
 }
 
+/** Single file result in a batch upload response */
+export interface BatchFileResult {
+    originalName: string;
+    storagePath: string;
+    success: boolean;
+    message: string;
+    fileId?: string;
+    error?: string;
+}
+
+/** Response from POST /api/files/upload/batch */
+export interface BatchUploadResponse {
+    message: string;
+    totalCount: number;
+    successCount: number;
+    failureCount: number;
+    results: BatchFileResult[];
+}
+
+/** Conflict info for a single file in batch upload */
+export interface BatchConflictInfo {
+    originalName: string;
+    existingFileId: string;
+    folder: string;
+}
+
+/** Conflict response from batch upload (409) */
+export interface BatchConflictResponse {
+    message: string;
+    conflicts: BatchConflictInfo[];
+    totalFiles: number;
+    trashedConflicts?: string[];
+}
+
 /** Conflict payload returned by backend when upload results in a 409 */
 export interface ConflictPayload {
     id: string;
