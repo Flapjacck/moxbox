@@ -73,8 +73,21 @@ export const UploadButton: FC<UploadButtonProps> = ({
         } catch (err: unknown) {
             // If the backend returned a 409 conflict, notify the parent via onDuplicate
             if (isApiError(err) && err.status === 409 && onDuplicate && files.length === 1) {
+                // Validate the conflict payload shape before passing it to the callback.
+                // `err.payload` is typed as `Record<string, unknown>` so we need an
+                // explicit runtime check to ensure it matches `ConflictPayload`.
                 try {
-                    onDuplicate({ conflict: err.payload?.conflict ?? null, file: files[0] });
+                    const maybeConflict = (err.payload as Record<string, unknown> | undefined)?.conflict;
+                    const isConflictPayload =
+                        typeof maybeConflict === 'object' &&
+                        maybeConflict !== null &&
+                        'id' in (maybeConflict as Record<string, unknown>) &&
+                        'originalName' in (maybeConflict as Record<string, unknown>);
+
+                    onDuplicate({
+                        conflict: isConflictPayload ? (maybeConflict as ConflictPayload) : null,
+                        file: files[0],
+                    });
                 } catch {
                     /* ignore */
                 }
