@@ -2,7 +2,7 @@
  * File Service
  * =============
  * API call wrappers for file management endpoints.
- * Handles list, upload, download, delete, restore, and metadata operations.
+ * Handles list, upload (single & batch), download, delete, restore, and metadata operations.
  * All file operations use ID-based endpoints for security.
  */
 
@@ -12,6 +12,7 @@ import type {
     FileItem,
     FileListResponse,
     UploadResponse,
+    BatchUploadResponse,
     FileActionResponse,
     DeleteResponse,
 } from '../types/file.types';
@@ -176,6 +177,55 @@ export const permanentDeleteFile = async (fileId: string): Promise<DeleteRespons
     const response = await apiFetch(`/files/id/${encodeURIComponent(fileId)}/permanent`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) await handleErrorResponse(response);
+    return response.json();
+};
+
+/**
+ * Uploads multiple files to the server in a single batch request.
+ * Preserves folder structure via webkitRelativePath for folder uploads.
+ *
+ * If conflicts are detected, returns a 409 error with conflict info.
+ * The caller should catch this and re-call with an action parameter.
+ *
+ * @param files - Array of File objects to upload
+ * @param baseFolder - Optional base folder path to upload into
+ * @param action - Optional conflict resolution action: 'replace' | 'keep_both'
+ * @returns BatchUploadResponse with per-file results
+ * @throws Error with status 409 if conflicts detected (check error.payload for details)
+ */
+export const uploadFiles = async (
+    files: File[],
+    baseFolder?: string,
+    action?: 'replace' | 'keep_both'
+): Promise<BatchUploadResponse> => {
+    const formData = new FormData();
+
+    // Append base folder first (will be combined with per-file relative paths)
+    if (baseFolder) {
+        formData.append('folder', baseFolder);
+    }
+
+    // Append conflict resolution action if provided
+    if (action) {
+        formData.append('action', action);
+    }
+
+    // For each file, append its relativePath (if any) BEFORE the file
+    // This order is critical for multer to associate metadata with files
+    for (const file of files) {
+        // webkitRelativePath contains the full path from folder root (e.g., "myFolder/sub/file.txt")
+        const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || '';
+        formData.append('relativePath', relativePath);
+        formData.append('file', file);
+    }
+
+    const response = await apiFetch('/files/upload/batch', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: formData,
     });
 
     if (!response.ok) await handleErrorResponse(response);
