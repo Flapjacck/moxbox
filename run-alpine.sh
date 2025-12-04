@@ -300,8 +300,15 @@ FILES_DIR=${FILES_DIR:-$DEFAULT_FILES_DIR}
 # Normalize FILES_DIR: remove leading ./ if present and collapse slashes
 FILES_DIR=$(printf "%s" "$FILES_DIR" | sed 's@^\./@@; s@/*$@@')
 
+# Read ALLOW_ALL_ORIGINS from env; default true in dev mode for convenience
 ALLOW_ALL_ORIGINS=$(read_env_value "ALLOW_ALL_ORIGINS" "$ROOT_ENV")
-ALLOW_ALL_ORIGINS=${ALLOW_ALL_ORIGINS:-false}
+if [ -z "$ALLOW_ALL_ORIGINS" ]; then
+    if [ "$MODE" = "dev" ]; then
+        ALLOW_ALL_ORIGINS=true
+    else
+        ALLOW_ALL_ORIGINS=false
+    fi
+fi
 
 DB_PATH=$(read_env_value "DATABASE_PATH" "$ROOT_ENV")
 DB_PATH=${DB_PATH:-$DEFAULT_DB_PATH}
