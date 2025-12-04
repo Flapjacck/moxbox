@@ -1,21 +1,48 @@
 #!/bin/sh
 set -e
 
-# Alpine LXC run script for moxbox
-# Usage: ./run-alpine.sh [--dev|--build] [--force]
+# =============================================================================
+# moxbox - Alpine LXC Run Script
+# =============================================================================
+# Automatically detects all network interfaces, configures CORS for all IPs,
+# and manages a centralized .env file at the project root.
+#
+# Usage: ./run-alpine.sh [--dev|--build] [--force] [--list-ips]
+#
+# Features:
+#   - Auto-detects ALL network IPs (including Tailscale, VPN, etc.)
+#   - Generates CORS-allowed origins for every detected IP
+#   - Single .env at project root, synced to backend/.env and frontend/.env
+#   - No manual IP/port prompts (edit .env to customize)
+#   - Re-detects IPs on every run to handle network changes
+# =============================================================================
 
-# === CONFIG ===
+# === CONFIGURATION ===
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SETUP_MARKER="$SCRIPT_DIR/.alpine-setup-done"
+ROOT_ENV="$SCRIPT_DIR/.env"
+BE_ENV="$SCRIPT_DIR/backend/.env"
+FE_ENV="$SCRIPT_DIR/frontend/.env"
 MODE="dev"
 FORCE_ENV=false
+LIST_IPS_ONLY=false
 
-# === HELPERS ===
-info() { echo "[INFO] $1"; }
-warn() { echo "[WARN] $1"; }
-err() { echo "[ERROR] $1"; exit 1; }
+# === HELPER FUNCTIONS ===
 
-prompt() { printf "%s" "$1" >&2; read -r ans; echo "$ans"; }
+# Logging helpers with consistent formatting
+info()  { echo "[INFO] $1"; }
+warn()  { echo "[WARN] $1"; }
+err()   { echo "[ERROR] $1"; exit 1; }
+debug() { [ "$DEBUG" = "true" ] && echo "[DEBUG] $1" || true; }
+
+# Prompt for user input (visible)
+prompt() {
+    printf "%s" "$1" >&2
+    read -r ans
+    echo "$ans"
+}
+
+# Prompt for sensitive input (hidden)
 prompt_hidden() {
     printf "%s" "$1" >&2
     stty -echo 2>/dev/null || true
@@ -25,149 +52,502 @@ prompt_hidden() {
     echo "$ans"
 }
 
-# === ARGS ===
+# =============================================================================
+# NETWORK DETECTION
+# =============================================================================
+# Detects all non-loopback IPv4 addresses from all interfaces.
+# Works on Alpine Linux, standard Linux, and most POSIX systems.
+# Returns space-separated list of unique IPs.
+# =============================================================================
+detect_all_ips() {
+    local ips=""
+    
+    # Method 1: Try 'ip' command (modern Linux, including Alpine)
+    if command -v ip >/dev/null 2>&1; then
+        ips=$(ip -4 addr show 2>/dev/null | \
+              awk '/inet / && !/127\.0\.0\.1/ {gsub(/\/.*/, "", $2); print $2}' | \
+              sort -u | tr '\n' ' ')
+    fi
+    
+    # Method 2: Fallback to 'hostname -I' (some systems)
+    if [ -z "$ips" ] && command -v hostname >/dev/null 2>&1; then
+        ips=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
+    fi
+    
+    # Method 3: Fallback to ifconfig (older systems)
+    if [ -z "$ips" ] && command -v ifconfig >/dev/null 2>&1; then
+        ips=$(ifconfig 2>/dev/null | \
+              awk '/inet / && !/127\.0\.0\.1/ {gsub(/addr:/, "", $2); print $2}' | \
+              sort -u | tr '\n' ' ')
+    fi
+    
+    # Trim whitespace and return
+    echo "$ips" | xargs
+}
+
+# =============================================================================
+# BUILD FRONTEND_URLS
+# =============================================================================
+# Creates a comma-separated list of allowed CORS origins from detected IPs.
+# Always includes localhost as a fallback for local development.
+# Format: http://IP1:PORT,http://IP2:PORT,...
+# =============================================================================
+build_frontend_urls() {
+    local port="$1"
+    local ips="$2"
+    local urls="http://localhost:$port"
+    
+    for ip in $ips; do
+        # Skip if already localhost
+        [ "$ip" = "127.0.0.1" ] && continue
+        urls="$urls,http://$ip:$port"
+    done
+    
+    echo "$urls"
+}
+
+# =============================================================================
+# ENVIRONMENT FILE MANAGEMENT
+# =============================================================================
+# Reads a value from .env file. Returns empty string if not found.
+# Usage: value=$(read_env_value "KEY" "/path/to/.env")
+# =============================================================================
+read_env_value() {
+    local key="$1"
+    local file="$2"
+    
+    if [ -f "$file" ]; then
+        grep "^${key}=" "$file" 2>/dev/null | cut -d= -f2- | head -1
+    fi
+}
+
+# =============================================================================
+# ARGUMENT PARSING
+# =============================================================================
 while [ $# -gt 0 ]; do
     case "$1" in
-        --dev) MODE="dev"; shift ;;
-        --build) MODE="build"; shift ;;
-        --force) FORCE_ENV=true; shift ;;
+        --dev)
+            MODE="dev"
+            shift
+            ;;
+        --build)
+            MODE="build"
+            shift
+            ;;
+        --force)
+            FORCE_ENV=true
+            shift
+            ;;
+        --list-ips)
+            LIST_IPS_ONLY=true
+            shift
+            ;;
+        --debug)
+            DEBUG=true
+            shift
+            ;;
         --help|-h)
-            echo "Usage: $0 [--dev|--build] [--force]"
-            echo "  --dev     Development mode (default)"
-            echo "  --build   Build and run production"
-            echo "  --force   Regenerate .env files"
-            exit 0 ;;
-        *) err "Unknown: $1" ;;
+            cat <<EOF
+Usage: $0 [OPTIONS]
+
+Options:
+  --dev       Development mode with hot reload (default)
+  --build     Build and run production version
+  --force     Force regenerate admin password and JWT secret
+  --list-ips  Show detected IPs and exit
+  --debug     Enable debug output
+  --help      Show this help message
+
+Environment:
+  Edit .env in the project root to customize ports and settings.
+  IPs are auto-detected on every run - no manual configuration needed.
+
+Examples:
+  $0                 # Run in dev mode
+  $0 --build         # Build and run production
+  $0 --force         # Reset admin password
+  $0 --list-ips      # Show all detected network IPs
+EOF
+            exit 0
+            ;;
+        *)
+            err "Unknown option: $1 (use --help for usage)"
+            ;;
     esac
 done
 
 cd "$SCRIPT_DIR"
-info "moxbox setup ($MODE mode)"
 
-# === STEP 1: SYSTEM PACKAGES (first run only) ===
-if [ ! -f "$SETUP_MARKER" ]; then
-    info "First run - installing packages..."
-    [ "$(id -u)" -ne 0 ] && warn "Run as root for apk"
+# =============================================================================
+# STEP 0: LIST IPS MODE (--list-ips)
+# =============================================================================
+if [ "$LIST_IPS_ONLY" = true ]; then
+    info "Detecting network interfaces..."
+    ALL_IPS=$(detect_all_ips)
     
-    apk update && apk add --no-cache nodejs npm || err "Package install failed"
-    npm install -g pnpm@latest || err "pnpm install failed"
-    
-    info "Installing dependencies..."
-    (cd "$SCRIPT_DIR/backend" && pnpm install)
-    (cd "$SCRIPT_DIR/frontend" && pnpm install)
-    
-    touch "$SETUP_MARKER"
-    info "Setup complete!"
-else
-    info "Packages installed (rm $SETUP_MARKER to reinstall)"
+    if [ -z "$ALL_IPS" ]; then
+        warn "No network IPs detected (only localhost available)"
+        echo "localhost"
+    else
+        info "Detected IPs:"
+        for ip in $ALL_IPS; do
+            echo "  - $ip"
+        done
+    fi
+    exit 0
 fi
 
-# === STEP 2: ENVIRONMENT CONFIG ===
-BE_ENV="$SCRIPT_DIR/backend/.env"
-FE_ENV="$SCRIPT_DIR/frontend/.env"
+info "moxbox setup ($MODE mode)"
 
-setup_env() {
-    info "Configuring environment..."
+# =============================================================================
+# STEP 1: SYSTEM PACKAGES (first run only)
+# =============================================================================
+# Installs Node.js, npm, and pnpm on Alpine Linux.
+# Skipped on subsequent runs (marker file tracks completion).
+# =============================================================================
+if [ ! -f "$SETUP_MARKER" ]; then
+    info "First run - installing system packages..."
     
-    # Auto-detect IP address (first non-localhost IP)
-    DETECTED_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-    [ -z "$DETECTED_IP" ] && DETECTED_IP=$(ip -4 addr show 2>/dev/null | awk '/inet / && !/127.0.0.1/ {gsub(/\/.*/, "", $2); print $2; exit}')
-    [ -z "$DETECTED_IP" ] && DETECTED_IP="localhost"
+    # Check for root (required for apk)
+    [ "$(id -u)" -ne 0 ] && warn "Not running as root - apk may fail"
     
-    HOST_IP=$(prompt "Host IP/domain [$DETECTED_IP]: "); HOST_IP=${HOST_IP:-$DETECTED_IP}
-    BE_PORT=$(prompt "Backend port [4200]: "); BE_PORT=${BE_PORT:-4200}
-    FE_PORT=$(prompt "Frontend port [5173]: "); FE_PORT=${FE_PORT:-5173}
-    FILES_DIR=$(prompt "Files directory [./files]: "); FILES_DIR=${FILES_DIR:-./files}
-    ADMIN_USER=$(prompt "Admin username [admin]: "); ADMIN_USER=${ADMIN_USER:-admin}
+    # Install Node.js and npm
+    apk update && apk add --no-cache nodejs npm || err "Failed to install nodejs/npm"
     
-    # Password with confirmation
+    # Install pnpm globally
+    npm install -g pnpm@latest || err "Failed to install pnpm"
+    
+    # Install project dependencies
+    info "Installing backend dependencies..."
+    (cd "$SCRIPT_DIR/backend" && pnpm install) || err "Backend dependency install failed"
+    
+    info "Installing frontend dependencies..."
+    (cd "$SCRIPT_DIR/frontend" && pnpm install) || err "Frontend dependency install failed"
+    
+    # Mark setup as complete
+    touch "$SETUP_MARKER"
+    info "System setup complete!"
+else
+    debug "Packages already installed (rm $SETUP_MARKER to reinstall)"
+fi
+
+# =============================================================================
+# STEP 2: DETECT NETWORK IPS
+# =============================================================================
+# Always re-detect IPs on every run to handle network changes.
+# This ensures Tailscale, VPN, and new interfaces are always included.
+# =============================================================================
+info "Detecting network interfaces..."
+ALL_IPS=$(detect_all_ips)
+debug "Detected IPs: $ALL_IPS"
+
+# Use first detected IP as primary (for display purposes)
+PRIMARY_IP=$(echo "$ALL_IPS" | awk '{print $1}')
+[ -z "$PRIMARY_IP" ] && PRIMARY_IP="localhost"
+
+# =============================================================================
+# STEP 3: LOAD OR CREATE ROOT .env
+# =============================================================================
+# The root .env is the single source of truth. On first run, we create it
+# from .env.example and prompt for the admin password. On subsequent runs,
+# we only update the FRONTEND_URLS with newly detected IPs.
+# =============================================================================
+
+# Default values (used if not in .env)
+DEFAULT_BE_PORT=4200
+DEFAULT_FE_PORT=5173
+DEFAULT_FILES_DIR="./files"
+DEFAULT_DB_PATH="./db.sqlite"
+DEFAULT_MAX_SIZE="1gb"
+DEFAULT_BLOCKED_MIME="text/html,application/javascript,text/javascript,application/x-msdownload,application/x-msdos-program,application/x-sh,application/x-bash,application/x-php"
+
+# Check if this is first-time setup (no .env or --force)
+NEED_SECRETS=false
+if [ ! -f "$ROOT_ENV" ]; then
+    info "Creating new .env configuration..."
+    NEED_SECRETS=true
+    
+    # Copy from example if available
+    if [ -f "$SCRIPT_DIR/.env.example" ]; then
+        cp "$SCRIPT_DIR/.env.example" "$ROOT_ENV"
+    else
+        touch "$ROOT_ENV"
+    fi
+elif [ "$FORCE_ENV" = true ]; then
+    info "Regenerating secrets (--force)..."
+    NEED_SECRETS=true
+fi
+
+# Read current values from .env (or use defaults)
+BE_PORT=$(read_env_value "BACKEND_PORT" "$ROOT_ENV")
+BE_PORT=${BE_PORT:-$DEFAULT_BE_PORT}
+
+FE_PORT=$(read_env_value "FRONTEND_PORT" "$ROOT_ENV")
+FE_PORT=${FE_PORT:-$DEFAULT_FE_PORT}
+
+FILES_DIR=$(read_env_value "FILES_DIR" "$ROOT_ENV")
+FILES_DIR=${FILES_DIR:-$DEFAULT_FILES_DIR}
+
+DB_PATH=$(read_env_value "DATABASE_PATH" "$ROOT_ENV")
+DB_PATH=${DB_PATH:-$DEFAULT_DB_PATH}
+
+MAX_SIZE=$(read_env_value "UPLOAD_MAX_FILE_SIZE" "$ROOT_ENV")
+MAX_SIZE=${MAX_SIZE:-$DEFAULT_MAX_SIZE}
+
+BLOCKED_MIME=$(read_env_value "UPLOAD_DISALLOWED_MIME_TYPES" "$ROOT_ENV")
+BLOCKED_MIME=${BLOCKED_MIME:-$DEFAULT_BLOCKED_MIME}
+
+ADMIN_USER=$(read_env_value "ADMIN_USERNAME" "$ROOT_ENV")
+ADMIN_USER=${ADMIN_USER:-admin}
+
+JWT_SECRET=$(read_env_value "JWT_SECRET" "$ROOT_ENV")
+ADMIN_HASH=$(read_env_value "ADMIN_PASSWORD_HASH" "$ROOT_ENV")
+
+# =============================================================================
+# STEP 4: GENERATE SECRETS (first run or --force)
+# =============================================================================
+# Only prompts for password on first run or when --force is used.
+# JWT secret is auto-generated, never prompted.
+# =============================================================================
+if [ "$NEED_SECRETS" = true ] || [ -z "$JWT_SECRET" ] || [ -z "$ADMIN_HASH" ]; then
+    info "Setting up admin credentials..."
+    
+    # Generate JWT secret automatically
+    JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
+    
+    # Prompt for admin password with confirmation
     while true; do
-        ADMIN_PASS=$(prompt_hidden "Admin password: ")
-        [ -z "$ADMIN_PASS" ] && err "Password required"
-        ADMIN_PASS_CONFIRM=$(prompt_hidden "Confirm password: ")
+        ADMIN_PASS=$(prompt_hidden "Enter admin password: ")
+        [ -z "$ADMIN_PASS" ] && { warn "Password cannot be empty"; continue; }
+        
+        ADMIN_PASS_CONFIRM=$(prompt_hidden "Confirm admin password: ")
+        
         if [ "$ADMIN_PASS" = "$ADMIN_PASS_CONFIRM" ]; then
             break
         else
-            warn "Passwords do not match. Try again."
+            warn "Passwords do not match. Please try again."
         fi
     done
     
-    # Generate secrets
-    info "Generating secrets..."
-    JWT=$(node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
-    HASH=$(cd "$SCRIPT_DIR/backend" && node -e "console.log(require('bcrypt').hashSync(process.argv[1],10))" "$ADMIN_PASS")
+    # Hash the password using bcrypt
+    info "Hashing password..."
+    ADMIN_HASH=$(cd "$SCRIPT_DIR/backend" && node -e "console.log(require('bcrypt').hashSync(process.argv[1], 10))" "$ADMIN_PASS")
     
-    # Backend .env
-    cat > "$BE_ENV" <<EOF
+    info "Credentials configured successfully!"
+fi
+
+# =============================================================================
+# STEP 5: BUILD FRONTEND_URLS FOR CORS
+# =============================================================================
+# Creates comma-separated list of all allowed origins based on detected IPs.
+# This is regenerated on EVERY run to capture network changes.
+# =============================================================================
+FRONTEND_URLS=$(build_frontend_urls "$FE_PORT" "$ALL_IPS")
+debug "FRONTEND_URLS: $FRONTEND_URLS"
+
+# =============================================================================
+# STEP 6: WRITE ROOT .env
+# =============================================================================
+# Writes the complete .env file with all current settings.
+# FRONTEND_URLS is always updated with latest detected IPs.
+# =============================================================================
+info "Writing root .env..."
+cat > "$ROOT_ENV" <<EOF
+# =============================================================================
+# moxbox - Environment Configuration
+# =============================================================================
+# Auto-generated by run-alpine.sh
+# Last updated: $(date '+%Y-%m-%d %H:%M:%S')
+#
+# FRONTEND_URLS is auto-detected from network interfaces on each run.
+# Edit other values as needed, then restart the script.
+# =============================================================================
+
+# --- Server Ports ---
+BACKEND_PORT=$BE_PORT
+FRONTEND_PORT=$FE_PORT
+
+# --- CORS Allowed Origins (auto-detected) ---
+# All detected network IPs are included so requests work from any interface.
+# Add custom domains by appending: ,https://yourdomain.com
+FRONTEND_URLS=$FRONTEND_URLS
+
+# --- Authentication ---
+ADMIN_USERNAME=$ADMIN_USER
+ADMIN_PASSWORD_HASH=$ADMIN_HASH
+JWT_SECRET=$JWT_SECRET
+
+# --- Storage ---
+FILES_DIR=$FILES_DIR
+DATABASE_PATH=$DB_PATH
+
+# --- Upload Limits ---
+UPLOAD_MAX_FILE_SIZE=$MAX_SIZE
+UPLOAD_DISALLOWED_MIME_TYPES=$BLOCKED_MIME
+EOF
+
+# =============================================================================
+# STEP 7: SYNC TO BACKEND/.env
+# =============================================================================
+# Backend expects specific variable names. We translate from root .env format.
+# HOST is always 0.0.0.0 to bind on all interfaces.
+# =============================================================================
+info "Syncing backend/.env..."
+cat > "$BE_ENV" <<EOF
+# =============================================================================
+# Backend Environment (auto-generated from root .env)
+# Do not edit directly - modify ../.env instead
+# Generated: $(date '+%Y-%m-%d %H:%M:%S')
+# =============================================================================
+
+# Server binding
 PORT=$BE_PORT
 HOST=0.0.0.0
-JWT_SECRET=$JWT
+
+# CORS - comma-separated list of allowed frontend origins
+FRONTEND_URLS=$FRONTEND_URLS
+
+# Authentication
+JWT_SECRET=$JWT_SECRET
 ADMIN_USERNAME=$ADMIN_USER
-ADMIN_PASSWORD_HASH=$HASH
+ADMIN_PASSWORD_HASH=$ADMIN_HASH
+
+# Storage
 FILES_DIR=$FILES_DIR
-FRONTEND_URL=http://$HOST_IP:$FE_PORT
-EOF
-    
-    # Frontend .env
-    cat > "$FE_ENV" <<EOF
-VITE_BACKEND_URL=http://$HOST_IP:$BE_PORT
-VITE_PORT=$FE_PORT
-EOF
-    
-    mkdir -p "$SCRIPT_DIR/backend/$FILES_DIR"
-    info "Configured: Host=$HOST_IP, BE=$BE_PORT, FE=$FE_PORT"
-}
+DATABASE_PATH=$DB_PATH
 
-if [ "$FORCE_ENV" = true ] || [ ! -f "$BE_ENV" ] || [ ! -f "$FE_ENV" ]; then
-    setup_env
-else
-    info "Using existing .env (--force to regenerate)"
-    BE_PORT=$(grep "^PORT=" "$BE_ENV" | cut -d= -f2)
-    BE_PORT=${BE_PORT:-4200}
-    FE_PORT=$(grep "^VITE_PORT=" "$FE_ENV" | cut -d= -f2)
-    FE_PORT=${FE_PORT:-5173}
-fi
+# Upload limits
+UPLOAD_MAX_FILE_SIZE=$MAX_SIZE
+UPLOAD_DISALLOWED_MIME_TYPES=$BLOCKED_MIME
+EOF
 
-# === STEP 3: BUILD (production only) ===
+# Ensure files directory exists
+mkdir -p "$SCRIPT_DIR/backend/$FILES_DIR"
+
+# =============================================================================
+# STEP 8: SYNC TO FRONTEND/.env
+# =============================================================================
+# Frontend uses Vite environment variables (VITE_ prefix).
+# VITE_BACKEND_URL uses primary IP for initial requests.
+# =============================================================================
+info "Syncing frontend/.env..."
+cat > "$FE_ENV" <<EOF
+# =============================================================================
+# Frontend Environment (auto-generated from root .env)
+# Do not edit directly - modify ../.env instead
+# Generated: $(date '+%Y-%m-%d %H:%M:%S')
+# =============================================================================
+
+# Backend API URL (primary IP used, but frontend falls back to window.origin)
+VITE_BACKEND_URL=http://$PRIMARY_IP:$BE_PORT
+EOF
+
+# =============================================================================
+# STEP 9: BUILD (production mode only)
+# =============================================================================
 if [ "$MODE" = "build" ]; then
-    info "Building..."
-    (cd "$SCRIPT_DIR/backend" && pnpm run build)
-    (cd "$SCRIPT_DIR/frontend" && pnpm run build)
+    info "Building for production..."
+    
+    info "Building backend..."
+    (cd "$SCRIPT_DIR/backend" && pnpm run build) || err "Backend build failed"
+    
+    info "Building frontend..."
+    (cd "$SCRIPT_DIR/frontend" && pnpm run build) || err "Frontend build failed"
+    
+    info "Build complete!"
 fi
 
-# === STEP 4: START SERVICES ===
+# =============================================================================
+# STEP 10: START SERVICES
+# =============================================================================
+# Starts backend and frontend as background processes.
+# Handles graceful shutdown on SIGINT/SIGTERM.
+# =============================================================================
+
+# Cleanup function for graceful shutdown
 cleanup() {
-    warn "Shutting down..."
-    [ -n "$BE_PID" ] && kill $BE_PID 2>/dev/null || true
-    [ -n "$FE_PID" ] && kill $FE_PID 2>/dev/null || true
+    echo ""
+    warn "Shutting down services..."
+    
+    [ -n "$BE_PID" ] && kill "$BE_PID" 2>/dev/null || true
+    [ -n "$FE_PID" ] && kill "$FE_PID" 2>/dev/null || true
+    
+    # Wait for processes to terminate
     wait 2>/dev/null || true
+    
+    info "Goodbye!"
     exit 0
 }
+
+# Register signal handlers
 trap cleanup INT TERM
 
+# Start services based on mode
 if [ "$MODE" = "dev" ]; then
-    (cd "$SCRIPT_DIR/backend" && pnpm run dev) & BE_PID=$!
-    (cd "$SCRIPT_DIR/frontend" && pnpm run dev --host --port "$FE_PORT") & FE_PID=$!
+    info "Starting development servers..."
+    
+    # Backend with hot reload
+    (cd "$SCRIPT_DIR/backend" && pnpm run dev) &
+    BE_PID=$!
+    
+    # Frontend with hot reload, bound to all interfaces
+    (cd "$SCRIPT_DIR/frontend" && pnpm run dev -- --host 0.0.0.0 --port "$FE_PORT") &
+    FE_PID=$!
 else
-    (cd "$SCRIPT_DIR/backend" && node dist/index.js) & BE_PID=$!
-    (cd "$SCRIPT_DIR/frontend" && pnpm run preview -- --host $HOST_IP --port "$FE_PORT") & FE_PID=$!
+    info "Starting production servers..."
+    
+    # Backend from compiled JS
+    (cd "$SCRIPT_DIR/backend" && node dist/index.js) &
+    BE_PID=$!
+    
+    # Frontend preview server
+    (cd "$SCRIPT_DIR/frontend" && pnpm run preview -- --host 0.0.0.0 --port "$FE_PORT") &
+    FE_PID=$!
 fi
 
+# Wait for services to initialize
 sleep 3
-kill -0 $BE_PID 2>/dev/null || err "Backend failed"
-kill -0 $FE_PID 2>/dev/null || err "Frontend failed"
 
-info "========================================"
-info "moxbox running!"
-info "Backend:  http://$HOST_IP:$BE_PORT"
-info "Frontend: http://$HOST_IP:$FE_PORT"
-info "========================================"
-info "Ctrl+C to stop"
+# Verify services are running
+kill -0 "$BE_PID" 2>/dev/null || err "Backend failed to start (check logs above)"
+kill -0 "$FE_PID" 2>/dev/null || err "Frontend failed to start (check logs above)"
 
-# Wait for either process to exit (POSIX compatible)
-while kill -0 $BE_PID 2>/dev/null && kill -0 $FE_PID 2>/dev/null; do
+# =============================================================================
+# STEP 11: DISPLAY ACCESS INFO
+# =============================================================================
+# Shows all available URLs for accessing the application.
+# =============================================================================
+echo ""
+info "========================================"
+info "  moxbox is running!"
+info "========================================"
+info ""
+info "Backend API:"
+info "  http://localhost:$BE_PORT"
+for ip in $ALL_IPS; do
+    [ "$ip" != "127.0.0.1" ] && info "  http://$ip:$BE_PORT"
+done
+info ""
+info "Frontend UI:"
+info "  http://localhost:$FE_PORT"
+for ip in $ALL_IPS; do
+    [ "$ip" != "127.0.0.1" ] && info "  http://$ip:$FE_PORT"
+done
+info ""
+info "CORS is configured for ALL above addresses."
+info "========================================"
+info "Press Ctrl+C to stop"
+echo ""
+
+# =============================================================================
+# STEP 12: WAIT FOR EXIT
+# =============================================================================
+# Keeps script running until a service exits or signal received.
+# =============================================================================
+while kill -0 "$BE_PID" 2>/dev/null && kill -0 "$FE_PID" 2>/dev/null; do
     sleep 1
 done
 
-warn "Service stopped"
+# If we get here, a service exited unexpectedly
+warn "A service has stopped unexpectedly"
 cleanup

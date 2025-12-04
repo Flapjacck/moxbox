@@ -9,13 +9,52 @@ import { NotFoundError } from './middleware/errors';
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger, info } from './utils/logger';
 
-// TODO: Add middleware for CORS, parsing, authentication and RBAC
-// e.g., app.use(cors()), app.use(express.json()) and custom `authenticate` middleware
+// =============================================================================
+// CORS Configuration
+// =============================================================================
+// Parses FRONTEND_URLS env var (comma-separated) into an array of allowed origins.
+// This allows requests from any IP address the server is accessible on.
+// Example: "http://localhost:5173,http://10.10.4.208:5173,http://100.74.7.83:5173"
+// =============================================================================
+const parseAllowedOrigins = (): string[] => {
+    const envUrls = process.env.FRONTEND_URLS || process.env.FRONTEND_URL;
+
+    if (!envUrls) {
+        // Fallback to localhost if no env var is set
+        return ['http://localhost:5173'];
+    }
+
+    // Split by comma, trim whitespace, filter empty strings
+    return envUrls
+        .split(',')
+        .map((url) => url.trim())
+        .filter((url) => url.length > 0);
+};
+
+const allowedOrigins = parseAllowedOrigins();
+info(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
 
 const app = express();
 app.use(express.json()); // JSON body parsing middleware
+
+// Dynamic CORS origin validation
+// Checks if the request origin is in our allowed list, or allows requests
+// with no origin (e.g., server-to-server, curl, Postman)
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+        // Allow requests with no origin (non-browser clients like curl, Postman)
+        if (!origin) {
+            return callback(null, true);
+        }
+
+        // Check if origin is in our allowed list
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        // Origin not allowed - reject with error
+        callback(new Error(`CORS: Origin ${origin} not allowed`));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization']

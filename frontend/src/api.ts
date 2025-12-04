@@ -7,9 +7,33 @@
 
 /**
  * Backend server URL (without /api prefix).
+ *
+ * Resolution order:
+ * 1. VITE_BACKEND_URL from environment (set by run-alpine.sh)
+ * 2. window.location.origin (same-origin fallback - works when FE/BE on same host)
+ * 3. localhost:4200 (development fallback)
+ *
+ * The window.location.origin fallback allows the app to work from any IP
+ * address without needing to rebuild - useful for Tailscale, VPN, etc.
  */
-export const API_BASE_URL =
-    import.meta.env.VITE_BACKEND_URL || 'http://localhost:4200';
+export const API_BASE_URL = (() => {
+    // 1. Check for explicit env var
+    if (import.meta.env.VITE_BACKEND_URL) {
+        return import.meta.env.VITE_BACKEND_URL;
+    }
+
+    // 2. In browser, use current origin (works for same-host deployments)
+    if (typeof window !== 'undefined' && window.location?.origin) {
+        // If frontend and backend are on different ports, we need to adjust
+        // Default: frontend on 5173, backend on 4200
+        const currentOrigin = window.location.origin;
+        // Replace frontend port with backend port
+        return currentOrigin.replace(':5173', ':4200');
+    }
+
+    // 3. Fallback for SSR or missing window
+    return 'http://localhost:4200';
+})();
 
 /**
  * API route prefix used by the backend.
