@@ -27,28 +27,69 @@ info(`CORS allowlist: ${allowedOrigins.join(', ')}`);
 
 app.use(cors({
     origin: (origin, callback) => {
-        // allow requests with no origin (curl, server-to-server)
+        // Allow requests with no origin (e.g., curl, CLI)
         if (!origin) return callback(null, true);
+
+        info(`CORS incoming origin: ${origin}`);
+
+        // Quick exact match check
         if (allowedOrigins.includes(origin)) {
+            info(`CORS allow: exact match ${origin}`);
             return callback(null, true);
         }
-        // allow by hostname:port matches if allowedOrigins contains host or host:port
+
+        // If allowlist contains a permissive wildcard, allow any origin
+        if (allowedOrigins.includes('*') || allowedOrigins.includes('ALL') || allowedOrigins.includes('all')) {
+            info('CORS allow: wildcard present in allowlist');
+            return callback(null, true);
+        }
+
         try {
             const originUrl = new URL(origin);
+            const originHost = originUrl.hostname;
+            const originPort = originUrl.port || '';
+
             const permitted = allowedOrigins.some((a) => {
-                if (a === origin) return true;
-                try {
-                    const allowedUrl = new URL(a);
-                    return allowedUrl.hostname === originUrl.hostname && (allowedUrl.port === originUrl.port || !allowedUrl.port);
-                } catch (err) {
-                    // Not a full URL; allow host-only matches like 'localhost' or 'mydomain'
-                    return a === originUrl.hostname || a === `${originUrl.hostname}:${originUrl.port}`;
+                // remove whitespace
+                const entry = a.trim();
+                if (!entry) return false;
+
+                // If entry is a full URL e.g., http://1.2.3.4:5173
+                if (entry.includes('://')) {
+                    try {
+                        const allowedUrl = new URL(entry);
+                        const allowedHost = allowedUrl.hostname;
+                        const allowedPort = allowedUrl.port || '';
+                        if (allowedHost !== originHost) return false;
+                        // If allowedPort is empty, allow any port
+                        if (!allowedPort || allowedPort === originPort) return true;
+                        return false;
+                    } catch (e) {
+                        // fall through to hostname-only handling
+                    }
                 }
+
+                // If entry contains a colon (host:port) without scheme
+                if (entry.includes(':')) {
+                    const [h, p] = entry.split(':');
+                    if (h === originHost && (p === originPort || p === '')) return true;
+                    return false;
+                }
+
+                // hostname-only match
+                if (entry === originHost) return true;
+                return false;
             });
-            if (permitted) return callback(null, true);
-        } catch (_e) {
-            // ignore parse errors; fall through to rejection
+
+            if (permitted) {
+                info(`CORS allow: matched host ${originHost}:${originPort}`);
+                return callback(null, true);
+            }
+        } catch (err) {
+            info(`CORS error parsing origin: ${String(err)}`);
         }
+
+        info(`CORS block: ${origin} not in allowlist`);
         callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
@@ -67,6 +108,16 @@ app.use('/api', (_req, _res, next) => next(new NotFoundError('API route not foun
 // Root route — in case someone visits the server base URL
 app.get('/', (req, res) => {
     res.json({ status: 'ok', message: 'Fileshare backend is running', api: '/api/' });
+});
+
+// Debug endpoint to help verify CORS and headers remotely (e.g., mobile)
+app.get('/api/_debug/cors', (req, res) => {
+    res.json({
+        allowedOrigins,
+        originHeader: req.headers.origin || null,
+        hostHeader: req.headers.host || null,
+        referer: req.headers.referer || null
+    });
 });
 
 // Handle Non existing routes.

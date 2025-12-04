@@ -115,8 +115,9 @@ setup_env() {
     ALLOWED_ORIGINS_LIST="$ALLOWED_ORIGINS_LIST,http://localhost:$FE_PORT"
     # Always include user-selected HOST_IP too
     ALLOWED_ORIGINS_LIST="$ALLOWED_ORIGINS_LIST,http://$HOST_IP:$FE_PORT"
-    # Trim leading comma
-    ALLOWED_ORIGINS_LIST=$(echo "$ALLOWED_ORIGINS_LIST" | sed 's/^,//')
+    # Trim leading comma and deduplicate
+    ALLOWED_ORIGINS_LIST=$(echo "$ALLOWED_ORIGINS_LIST" | sed 's/^,//' | tr ',' '\n' | awk '!seen[$0]++ && length($0)>0 {print $0}' | tr '\n' ',')
+    ALLOWED_ORIGINS_LIST=$(echo "$ALLOWED_ORIGINS_LIST" | sed 's/,$//')
 
     # Root .env (includes both backend & frontend variables)
     cat > "$ROOT_ENV" <<EOF
