@@ -297,6 +297,8 @@ FE_PORT=${FE_PORT:-$DEFAULT_FE_PORT}
 
 FILES_DIR=$(read_env_value "FILES_DIR" "$ROOT_ENV")
 FILES_DIR=${FILES_DIR:-$DEFAULT_FILES_DIR}
+# Normalize FILES_DIR: remove leading ./ if present and collapse slashes
+FILES_DIR=$(printf "%s" "$FILES_DIR" | sed 's@^\./@@; s@/*$@@')
 
 DB_PATH=$(read_env_value "DATABASE_PATH" "$ROOT_ENV")
 DB_PATH=${DB_PATH:-$DEFAULT_DB_PATH}
@@ -436,8 +438,12 @@ UPLOAD_MAX_FILE_SIZE=$MAX_SIZE
 UPLOAD_DISALLOWED_MIME_TYPES=$BLOCKED_MIME
 EOF
 
-# Ensure files directory exists
-mkdir -p "$SCRIPT_DIR/backend/$FILES_DIR"
+# Ensure files directory exists both in backend root and project root
+_backend_files_dir="$SCRIPT_DIR/backend/$FILES_DIR"
+_root_files_dir="$SCRIPT_DIR/$FILES_DIR"
+info "Ensuring files directories exist: backend: $_backend_files_dir , root: $_root_files_dir"
+mkdir -p "$_backend_files_dir" || err "Failed to create backend files dir: $_backend_files_dir"
+mkdir -p "$_root_files_dir" || warn "Failed to create root files dir: $_root_files_dir (non-fatal)"
 
 # =============================================================================
 # STEP 8: SYNC TO FRONTEND/.env

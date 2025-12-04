@@ -36,6 +36,7 @@ const parseAllowedOrigins = (): string[] => {
 };
 
 const allowedOrigins = parseAllowedOrigins();
+const allowAllOrigins = (process.env.ALLOW_ALL_ORIGINS || 'false').toLowerCase() === 'true';
 info(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
 
 const app = express();
@@ -48,6 +49,10 @@ app.use(cors({
     origin: (origin, callback) => {
         // Allow requests with no origin (non-browser clients like curl, Postman)
         if (!origin) {
+            return callback(null, true);
+        }
+        // Allow all origins if enabled (dev convenience)
+        if (allowAllOrigins) {
             return callback(null, true);
         }
         // Normalize origin by stripping trailing slash
