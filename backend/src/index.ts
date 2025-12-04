@@ -1,6 +1,6 @@
 // Main Server File
 import express from 'express';
-import config from './config/env';
+import config, { FRONTEND_ALLOWED_ORIGINS, FRONTEND_URL } from './config/env';
 import { initializeDatabase, closeDatabase } from './config/db';
 import { initializeFilesModel } from './models/files';
 import routes from './routes';
@@ -14,8 +14,41 @@ import { requestLogger, info } from './utils/logger';
 
 const app = express();
 app.use(express.json()); // JSON body parsing middleware
+// Build an allowlist using the CSV FRONTEND_ALLOWED_ORIGINS env var or single FRONTEND_URL
+const allowedOriginsRaw = (FRONTEND_ALLOWED_ORIGINS && FRONTEND_ALLOWED_ORIGINS.length > 0)
+    ? FRONTEND_ALLOWED_ORIGINS
+    : (FRONTEND_URL || 'http://localhost:5173');
+const allowedOrigins = allowedOriginsRaw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+        // allow requests with no origin (curl, server-to-server)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        // allow by hostname:port matches if allowedOrigins contains host or host:port
+        try {
+            const originUrl = new URL(origin);
+            const permitted = allowedOrigins.some((a) => {
+                if (a === origin) return true;
+                try {
+                    const allowedUrl = new URL(a);
+                    return allowedUrl.hostname === originUrl.hostname && (allowedUrl.port === originUrl.port || !allowedUrl.port);
+                } catch (err) {
+                    // Not a full URL; allow host-only matches like 'localhost' or 'mydomain'
+                    return a === originUrl.hostname || a === `${originUrl.hostname}:${originUrl.port}`;
+                }
+            });
+            if (permitted) return callback(null, true);
+        } catch (_e) {
+            // ignore parse errors; fall through to rejection
+        }
+        callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization']

@@ -2,12 +2,12 @@
 set -e
 
 # Alpine LXC run script for moxbox
-# Usage: ./run-alpine.sh [--dev|--build] [--force]
+# Usage: ./run-alpine.sh [--force]
 
 # === CONFIG ===
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SETUP_MARKER="$SCRIPT_DIR/.alpine-setup-done"
-MODE="dev"
+MODE="build"
 FORCE_ENV=false
 
 # === HELPERS ===
@@ -28,13 +28,9 @@ prompt_hidden() {
 # === ARGS ===
 while [ $# -gt 0 ]; do
     case "$1" in
-        --dev) MODE="dev"; shift ;;
-        --build) MODE="build"; shift ;;
         --force) FORCE_ENV=true; shift ;;
         --help|-h)
-            echo "Usage: $0 [--dev|--build] [--force]"
-            echo "  --dev     Development mode (default)"
-            echo "  --build   Build and run production"
+            echo "Usage: $0 [--force]"
             echo "  --force   Regenerate .env files"
             exit 0 ;;
         *) err "Unknown: $1" ;;
@@ -63,8 +59,7 @@ else
 fi
 
 # === STEP 2: ENVIRONMENT CONFIG ===
-BE_ENV="$SCRIPT_DIR/backend/.env"
-FE_ENV="$SCRIPT_DIR/frontend/.env"
+ROOT_ENV="$SCRIPT_DIR/.env"
 
 setup_env() {
     info "Configuring environment..."
@@ -97,43 +92,44 @@ setup_env() {
     JWT=$(node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
     HASH=$(cd "$SCRIPT_DIR/backend" && node -e "console.log(require('bcrypt').hashSync(process.argv[1],10))" "$ADMIN_PASS")
     
-    # Backend .env
-    cat > "$BE_ENV" <<EOF
+    # Root .env (includes both backend & frontend variables)
+    cat > "$ROOT_ENV" <<EOF
+# Backend
 PORT=$BE_PORT
 HOST=0.0.0.0
 JWT_SECRET=$JWT
 ADMIN_USERNAME=$ADMIN_USER
 ADMIN_PASSWORD_HASH=$HASH
 FILES_DIR=$FILES_DIR
+DATABASE_PATH=./db.sqlite
 FRONTEND_URL=http://$HOST_IP:$FE_PORT
-EOF
-    
-    # Frontend .env
-    cat > "$FE_ENV" <<EOF
+# Frontend / Vite variables
 VITE_BACKEND_URL=http://$HOST_IP:$BE_PORT
 VITE_PORT=$FE_PORT
+VITE_HOST=0.0.0.0
+# CORS allowlist (comma-separated)
+FRONTEND_ALLOWED_ORIGINS=http://$HOST_IP:$FE_PORT,http://localhost:$FE_PORT
 EOF
     
     mkdir -p "$SCRIPT_DIR/backend/$FILES_DIR"
     info "Configured: Host=$HOST_IP, BE=$BE_PORT, FE=$FE_PORT"
 }
 
-if [ "$FORCE_ENV" = true ] || [ ! -f "$BE_ENV" ] || [ ! -f "$FE_ENV" ]; then
+if [ "$FORCE_ENV" = true ] || [ ! -f "$ROOT_ENV" ]; then
     setup_env
 else
     info "Using existing .env (--force to regenerate)"
-    BE_PORT=$(grep "^PORT=" "$BE_ENV" | cut -d= -f2)
+    BE_PORT=$(grep "^PORT=" "$ROOT_ENV" | cut -d= -f2)
     BE_PORT=${BE_PORT:-4200}
-    FE_PORT=$(grep "^VITE_PORT=" "$FE_ENV" | cut -d= -f2)
+    FE_PORT=$(grep "^VITE_PORT=" "$ROOT_ENV" | cut -d= -f2)
     FE_PORT=${FE_PORT:-5173}
 fi
 
 # === STEP 3: BUILD (production only) ===
-if [ "$MODE" = "build" ]; then
-    info "Building..."
-    (cd "$SCRIPT_DIR/backend" && pnpm run build)
-    (cd "$SCRIPT_DIR/frontend" && pnpm run build)
-fi
+# Always build, then run production
+info "Building backend & frontend..."
+(cd "$SCRIPT_DIR/backend" && pnpm run build)
+(cd "$SCRIPT_DIR/frontend" && pnpm run build)
 
 # === STEP 4: START SERVICES ===
 cleanup() {
@@ -145,13 +141,9 @@ cleanup() {
 }
 trap cleanup INT TERM
 
-if [ "$MODE" = "dev" ]; then
-    (cd "$SCRIPT_DIR/backend" && pnpm run dev) & BE_PID=$!
-    (cd "$SCRIPT_DIR/frontend" && pnpm run dev --host --port "$FE_PORT") & FE_PID=$!
-else
-    (cd "$SCRIPT_DIR/backend" && node dist/index.js) & BE_PID=$!
-    (cd "$SCRIPT_DIR/frontend" && pnpm run preview -- --host $HOST_IP --port "$FE_PORT") & FE_PID=$!
-fi
+# Run production artifacts (always)
+(cd "$SCRIPT_DIR/backend" && node dist/index.js) & BE_PID=$!
+(cd "$SCRIPT_DIR/frontend" && pnpm run preview -- --host 0.0.0.0 --port "$FE_PORT") & FE_PID=$!
 
 sleep 3
 kill -0 $BE_PID 2>/dev/null || err "Backend failed"

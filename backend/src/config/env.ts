@@ -1,6 +1,13 @@
 // File to manage environment variables and configurations
+import path from 'path';
 import dotenv from 'dotenv';
 
+// Prefer repository root .env (repoRoot/.env) if present. This allows a single config
+// file at the repo root that controls both backend and frontend behavior. If the root
+// file is not present, fall back to the default behavior of loading local backend/.env
+const rootEnvPath = path.resolve(__dirname, '..', '..', '..', '.env');
+dotenv.config({ path: rootEnvPath });
+// Fallback to local backend/.env if values are missing
 dotenv.config();
 
 export const PORT = Number(process.env.PORT) || 3000;
@@ -10,6 +17,8 @@ export const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 export const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || '';
 export const FILES_DIR = process.env.FILES_DIR || '/path/to/mounted/proxmox/storage';
 export const DATABASE_PATH = process.env.DATABASE_PATH || './data/moxbox.db';
+export const FRONTEND_URL = process.env.FRONTEND_URL || '';
+export const FRONTEND_ALLOWED_ORIGINS = process.env.FRONTEND_ALLOWED_ORIGINS || '';
 
 /**
  * Parse a human-readable file size string into bytes.
@@ -102,6 +111,8 @@ export interface Config {
     uploadMaxFileSize: number;
     /** List of MIME types that are disallowed for upload */
     uploadDisallowedMimeTypes: string[];
+    frontendUrl: string;
+    frontendAllowedOrigins: string[];
 }
 
 export const config: Config = {
@@ -114,6 +125,8 @@ export const config: Config = {
     databasePath: DATABASE_PATH,
     uploadMaxFileSize: UPLOAD_MAX_FILE_SIZE,
     uploadDisallowedMimeTypes: UPLOAD_DISALLOWED_MIME_TYPES,
+    frontendUrl: FRONTEND_URL,
+    frontendAllowedOrigins: FRONTEND_ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean),
 };
 
 export default config;
