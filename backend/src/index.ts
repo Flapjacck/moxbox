@@ -24,11 +24,15 @@ const parseAllowedOrigins = (): string[] => {
         return ['http://localhost:5173'];
     }
 
-    // Split by comma, trim whitespace, filter empty strings
-    return envUrls
+    // Split by comma, trim whitespace, filter empty strings, strip trailing slash, and dedupe
+    const entries = envUrls
         .split(',')
         .map((url) => url.trim())
-        .filter((url) => url.length > 0);
+        .filter((url) => url.length > 0)
+        .map((url) => url.replace(/\/+$/, ''));
+
+    // Unique list
+    return Array.from(new Set(entries));
 };
 
 const allowedOrigins = parseAllowedOrigins();
@@ -46,9 +50,11 @@ app.use(cors({
         if (!origin) {
             return callback(null, true);
         }
+        // Normalize origin by stripping trailing slash
+        const normalized = origin.replace(/\/+$/, '');
 
         // Check if origin is in our allowed list
-        if (allowedOrigins.includes(origin)) {
+        if (allowedOrigins.includes(normalized)) {
             return callback(null, true);
         }
 
