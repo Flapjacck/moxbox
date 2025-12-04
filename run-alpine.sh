@@ -58,7 +58,7 @@ prompt_hidden() {
 # Detects all non-loopback IPv4 addresses from all interfaces.
 # Works on Alpine Linux, standard Linux, and most POSIX systems.
 # Returns space-separated list of unique IPs.
-# Note: Avoids 'local' keyword for BusyBox/ash compatibility.
+# Note: Strips carriage returns to avoid corruption issues.
 # =============================================================================
 detect_all_ips() {
     _da_ips=""
@@ -67,23 +67,23 @@ detect_all_ips() {
     if command -v ip >/dev/null 2>&1; then
         _da_ips=$(ip -4 addr show 2>/dev/null | \
               awk '/inet / && !/127\.0\.0\.1/ {gsub(/\/.*/, "", $2); print $2}' | \
-              sort -u | tr '\n' ' ')
+              tr -d '\r' | sort -u | tr '\n' ' ')
     fi
     
     # Method 2: Fallback to 'hostname -I' (some systems)
     if [ -z "$_da_ips" ] && command -v hostname >/dev/null 2>&1; then
-        _da_ips=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
+        _da_ips=$(hostname -I 2>/dev/null | tr -d '\r' | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
     fi
     
     # Method 3: Fallback to ifconfig (older systems)
     if [ -z "$_da_ips" ] && command -v ifconfig >/dev/null 2>&1; then
         _da_ips=$(ifconfig 2>/dev/null | \
               awk '/inet / && !/127\.0\.0\.1/ {gsub(/addr:/, "", $2); print $2}' | \
-              sort -u | tr '\n' ' ')
+              tr -d '\r' | sort -u | tr '\n' ' ')
     fi
     
-    # Trim whitespace and return
-    echo "$_da_ips" | xargs
+    # Trim whitespace and remove any stray carriage returns
+    echo "$_da_ips" | tr -d '\r' | xargs
 }
 
 # =============================================================================
@@ -92,7 +92,6 @@ detect_all_ips() {
 # Creates a comma-separated list of allowed CORS origins from detected IPs.
 # Always includes localhost as a fallback for local development.
 # Format: http://IP1:PORT,http://IP2:PORT,...
-# Note: Avoids 'local' keyword for maximum BusyBox/ash compatibility.
 # =============================================================================
 build_frontend_urls() {
     _bf_port="$1"
