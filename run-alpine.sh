@@ -96,15 +96,23 @@ detect_all_ips() {
 build_frontend_urls() {
     _bf_port="$1"
     _bf_ips="$2"
-    _bf_result="http://localhost:${_bf_port}"
     
+    # Ensure the input list is clean: remove CR, duplicate whitespace, and dedupe
+    _bf_ips=$(printf "%s" "$_bf_ips" | tr -d '\r' | tr -s ' ')
+    # Sort & dedupe the IP list while preserving space-separated format
+    _bf_ips=$(printf "%s\n" $_bf_ips | sort -u | tr '\n' ' ')
+
+    # Build the urls, starting with localhost default
+    _bf_result="http://localhost:${_bf_port}"
     for _bf_ip in $_bf_ips; do
         [ -z "$_bf_ip" ] && continue
         [ "$_bf_ip" = "127.0.0.1" ] && continue
         _bf_result="${_bf_result},http://${_bf_ip}:${_bf_port}"
     done
-    
-    echo "$_bf_result"
+
+    # Final sanitization: drop any stray CRs and collapse multiple commas
+    _bf_result=$(printf "%s" "$_bf_result" | tr -d '\r' | sed -E 's/,\s*/,/g; s/^,//; s/,$//')
+    printf "%s" "$_bf_result"
 }
 
 # =============================================================================
@@ -346,6 +354,11 @@ fi
 # =============================================================================
 FRONTEND_URLS=$(build_frontend_urls "$FE_PORT" "$ALL_IPS")
 info "CORS origins: $FRONTEND_URLS"
+# Debug: print raw hex for debugging non-printable chars
+if command -v od >/dev/null 2>&1; then
+    debug "CORS origins (hex): $(printf "%s" "$FRONTEND_URLS" | od -An -t x1 | sed 's/^ \+//')"
+    debug "ALL_IPS (hex): $(printf "%s" "$ALL_IPS" | od -An -t x1 | sed 's/^ \+//')"
+fi
 
 # =============================================================================
 # STEP 6: WRITE ROOT .env
