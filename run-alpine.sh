@@ -48,9 +48,9 @@ if [ ! -f "$SETUP_MARKER" ]; then
     apk update && apk add --no-cache nodejs npm || err "Package install failed"
     npm install -g pnpm@latest || err "pnpm install failed"
     
-    info "Installing dependencies..."
-    (cd "$SCRIPT_DIR/backend" && pnpm install)
-    (cd "$SCRIPT_DIR/frontend" && pnpm install)
+    info "Installing minimal global tools..."
+    # Install bcryptjs globally to avoid installing full project dependencies just for hashing a password
+    npm install -g bcryptjs >/dev/null 2>&1 || warn "Could not install bcryptjs globally; fallback will be used later"
     
     touch "$SETUP_MARKER"
     info "Setup complete!"
@@ -64,14 +64,19 @@ ROOT_ENV="$SCRIPT_DIR/.env"
 setup_env() {
     info "Configuring environment..."
     
-    # Auto-detect IP address (first non-localhost IP)
-    DETECTED_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-    [ -z "$DETECTED_IP" ] && DETECTED_IP=$(ip -4 addr show 2>/dev/null | awk '/inet / && !/127.0.0.1/ {gsub(/\/.*/, "", $2); print $2; exit}')
+    # Auto-detect all non-localhost IPv4 addresses
+    DETECTED_IPS=$(hostname -I 2>/dev/null || true)
+    if [ -z "$DETECTED_IPS" ]; then
+        DETECTED_IPS=$(ip -4 addr show 2>/dev/null | awk '/inet / && !/127.0.0.1/ {gsub(/\/.*/, "", $2); print $2}' | tr '\n' ' ')
+    fi
+    # Default to first detected IP or localhost
+    DETECTED_IP=$(echo "$DETECTED_IPS" | awk '{print $1}')
     [ -z "$DETECTED_IP" ] && DETECTED_IP="localhost"
-    
+
     HOST_IP=$(prompt "Host IP/domain [$DETECTED_IP]: "); HOST_IP=${HOST_IP:-$DETECTED_IP}
     BE_PORT=$(prompt "Backend port [4200]: "); BE_PORT=${BE_PORT:-4200}
     FE_PORT=$(prompt "Frontend port [5173]: "); FE_PORT=${FE_PORT:-5173}
+    UPLOAD_MAX_FILE_SIZE=$(prompt "Upload max file size [100mb]: "); UPLOAD_MAX_FILE_SIZE=${UPLOAD_MAX_FILE_SIZE:-100mb}
     FILES_DIR=$(prompt "Files directory [./files]: "); FILES_DIR=${FILES_DIR:-./files}
     ADMIN_USER=$(prompt "Admin username [admin]: "); ADMIN_USER=${ADMIN_USER:-admin}
     
@@ -90,8 +95,29 @@ setup_env() {
     # Generate secrets
     info "Generating secrets..."
     JWT=$(node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
-    HASH=$(cd "$SCRIPT_DIR/backend" && node -e "console.log(require('bcrypt').hashSync(process.argv[1],10))" "$ADMIN_PASS")
+    # Use bcryptjs if available globally (faster without installing project deps). Otherwise install temporarily.
+    if node -e "try{require('bcryptjs'); console.log(true);}catch(e){console.log(false);}" | grep true >/dev/null 2>&1; then
+        HASH=$(node -e "console.log(require('bcryptjs').hashSync(process.argv[1],10))" "$ADMIN_PASS")
+    else
+        TMPDIR=$(mktemp -d)
+        (cd "$TMPDIR" && npm init -y >/dev/null 2>&1 && npm install bcryptjs >/dev/null 2>&1)
+        HASH=$(cd "$TMPDIR" && node -e "console.log(require('bcryptjs').hashSync(process.argv[1],10))" "$ADMIN_PASS")
+        rm -rf "$TMPDIR"
+    fi
     
+    # Build FRONTEND_ALLOWED_ORIGINS including all detected IP addresses + localhost
+    ALLOWED_ORIGINS_LIST=""
+    for ip in $DETECTED_IPS; do
+        if [ -n "$ip" ]; then
+            ALLOWED_ORIGINS_LIST="$ALLOWED_ORIGINS_LIST,http://$ip:$FE_PORT"
+        fi
+    done
+    ALLOWED_ORIGINS_LIST="$ALLOWED_ORIGINS_LIST,http://localhost:$FE_PORT"
+    # Always include user-selected HOST_IP too
+    ALLOWED_ORIGINS_LIST="$ALLOWED_ORIGINS_LIST,http://$HOST_IP:$FE_PORT"
+    # Trim leading comma
+    ALLOWED_ORIGINS_LIST=$(echo "$ALLOWED_ORIGINS_LIST" | sed 's/^,//')
+
     # Root .env (includes both backend & frontend variables)
     cat > "$ROOT_ENV" <<EOF
 # Backend
@@ -108,7 +134,8 @@ VITE_BACKEND_URL=http://$HOST_IP:$BE_PORT
 VITE_PORT=$FE_PORT
 VITE_HOST=0.0.0.0
 # CORS allowlist (comma-separated)
-FRONTEND_ALLOWED_ORIGINS=http://$HOST_IP:$FE_PORT,http://localhost:$FE_PORT
+FRONTEND_ALLOWED_ORIGINS=$ALLOWED_ORIGINS_LIST
+UPLOAD_MAX_FILE_SIZE=$UPLOAD_MAX_FILE_SIZE
 EOF
     
     mkdir -p "$SCRIPT_DIR/backend/$FILES_DIR"
@@ -127,9 +154,9 @@ fi
 
 # === STEP 3: BUILD (production only) ===
 # Always build, then run production
-info "Building backend & frontend..."
-(cd "$SCRIPT_DIR/backend" && pnpm run build)
-(cd "$SCRIPT_DIR/frontend" && pnpm run build)
+info "Installing project dependencies and building backend & frontend..."
+(cd "$SCRIPT_DIR/backend" && pnpm install && pnpm run build)
+(cd "$SCRIPT_DIR/frontend" && pnpm install && pnpm run build)
 
 # === STEP 4: START SERVICES ===
 cleanup() {
