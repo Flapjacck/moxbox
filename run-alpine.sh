@@ -343,7 +343,7 @@ fi
 # This is regenerated on EVERY run to capture network changes.
 # =============================================================================
 FRONTEND_URLS=$(build_frontend_urls "$FE_PORT" "$ALL_IPS")
-debug "FRONTEND_URLS: $FRONTEND_URLS"
+info "CORS origins: $FRONTEND_URLS"
 
 # =============================================================================
 # STEP 6: WRITE ROOT .env
@@ -442,6 +442,9 @@ cat > "$FE_ENV" <<EOF
 VITE_BACKEND_URL=http://$PRIMARY_IP:$BE_PORT
 EOF
 
+# Ensure all env files are written to disk before starting services
+sync 2>/dev/null || true
+
 # =============================================================================
 # STEP 9: BUILD (production mode only)
 # =============================================================================
@@ -491,7 +494,8 @@ if [ "$MODE" = "dev" ]; then
     BE_PID=$!
     
     # Frontend with hot reload, bound to all interfaces
-    (cd "$SCRIPT_DIR/frontend" && pnpm run dev -- --host 0.0.0.0 --port "$FE_PORT") &
+    # Using pnpm exec vite directly for cleaner argument passing
+    (cd "$SCRIPT_DIR/frontend" && pnpm exec vite --host 0.0.0.0 --port "$FE_PORT") &
     FE_PID=$!
 else
     info "Starting production servers..."
@@ -501,7 +505,7 @@ else
     BE_PID=$!
     
     # Frontend preview server
-    (cd "$SCRIPT_DIR/frontend" && pnpm run preview -- --host 0.0.0.0 --port "$FE_PORT") &
+    (cd "$SCRIPT_DIR/frontend" && pnpm exec vite preview --host 0.0.0.0 --port "$FE_PORT") &
     FE_PID=$!
 fi
 
