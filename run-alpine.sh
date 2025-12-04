@@ -58,31 +58,32 @@ prompt_hidden() {
 # Detects all non-loopback IPv4 addresses from all interfaces.
 # Works on Alpine Linux, standard Linux, and most POSIX systems.
 # Returns space-separated list of unique IPs.
+# Note: Avoids 'local' keyword for BusyBox/ash compatibility.
 # =============================================================================
 detect_all_ips() {
-    local ips=""
+    _da_ips=""
     
     # Method 1: Try 'ip' command (modern Linux, including Alpine)
     if command -v ip >/dev/null 2>&1; then
-        ips=$(ip -4 addr show 2>/dev/null | \
+        _da_ips=$(ip -4 addr show 2>/dev/null | \
               awk '/inet / && !/127\.0\.0\.1/ {gsub(/\/.*/, "", $2); print $2}' | \
               sort -u | tr '\n' ' ')
     fi
     
     # Method 2: Fallback to 'hostname -I' (some systems)
-    if [ -z "$ips" ] && command -v hostname >/dev/null 2>&1; then
-        ips=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
+    if [ -z "$_da_ips" ] && command -v hostname >/dev/null 2>&1; then
+        _da_ips=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
     fi
     
     # Method 3: Fallback to ifconfig (older systems)
-    if [ -z "$ips" ] && command -v ifconfig >/dev/null 2>&1; then
-        ips=$(ifconfig 2>/dev/null | \
+    if [ -z "$_da_ips" ] && command -v ifconfig >/dev/null 2>&1; then
+        _da_ips=$(ifconfig 2>/dev/null | \
               awk '/inet / && !/127\.0\.0\.1/ {gsub(/addr:/, "", $2); print $2}' | \
               sort -u | tr '\n' ' ')
     fi
     
     # Trim whitespace and return
-    echo "$ips" | xargs
+    echo "$_da_ips" | xargs
 }
 
 # =============================================================================
@@ -91,19 +92,20 @@ detect_all_ips() {
 # Creates a comma-separated list of allowed CORS origins from detected IPs.
 # Always includes localhost as a fallback for local development.
 # Format: http://IP1:PORT,http://IP2:PORT,...
+# Note: Avoids 'local' keyword for maximum BusyBox/ash compatibility.
 # =============================================================================
 build_frontend_urls() {
-    local port="$1"
-    local ips="$2"
-    local urls="http://localhost:$port"
+    _bf_port="$1"
+    _bf_ips="$2"
+    _bf_result="http://localhost:${_bf_port}"
     
-    for ip in $ips; do
-        # Skip if already localhost
-        [ "$ip" = "127.0.0.1" ] && continue
-        urls="$urls,http://$ip:$port"
+    for _bf_ip in $_bf_ips; do
+        [ -z "$_bf_ip" ] && continue
+        [ "$_bf_ip" = "127.0.0.1" ] && continue
+        _bf_result="${_bf_result},http://${_bf_ip}:${_bf_port}"
     done
     
-    echo "$urls"
+    echo "$_bf_result"
 }
 
 # =============================================================================
@@ -111,13 +113,14 @@ build_frontend_urls() {
 # =============================================================================
 # Reads a value from .env file. Returns empty string if not found.
 # Usage: value=$(read_env_value "KEY" "/path/to/.env")
+# Note: Avoids 'local' keyword for BusyBox/ash compatibility.
 # =============================================================================
 read_env_value() {
-    local key="$1"
-    local file="$2"
+    _re_key="$1"
+    _re_file="$2"
     
-    if [ -f "$file" ]; then
-        grep "^${key}=" "$file" 2>/dev/null | cut -d= -f2- | head -1
+    if [ -f "$_re_file" ]; then
+        grep "^${_re_key}=" "$_re_file" 2>/dev/null | cut -d= -f2- | head -1
     fi
 }
 
