@@ -8,8 +8,27 @@
 /**
  * Backend server URL (without /api prefix).
  */
-export const API_BASE_URL =
-    import.meta.env.VITE_BACKEND_URL || 'http://localhost:4200';
+// Determine backend base URL.
+// Priority:
+// 1) VITE_BACKEND_URL env var (explicit override)
+// 2) Derive from the current frontend location (same hostname) and VITE_BACKEND_PORT (defaults to 4200)
+// 3) Fallback to localhost:4200 (for environments where window is not available)
+// Optional flag to prefer a derived backend host built from the current frontend
+// host (window.location.hostname). When `true`, the frontend will replace
+// `VITE_BACKEND_URL` with a derived host so requests go back to the same host
+// the frontend was accessed from — useful for multi-interface/dev setups
+// (e.g., local LAN IP vs Tailscale IP).
+const envUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
+const envPort = import.meta.env.VITE_BACKEND_PORT as string | undefined;
+const useDerivedHost = (import.meta.env.VITE_BACKEND_USE_DERIVED_HOST || 'false') === 'true';
+const defaultPort = envPort || '4200';
+const derivedUrl = typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:${defaultPort}`
+    : `http://localhost:${defaultPort}`;
+
+// If the user explicitly wants a derived host, prefer that over the env URL.
+// Otherwise, fall back to envUrl when defined.
+export const API_BASE_URL = useDerivedHost ? derivedUrl : (envUrl || derivedUrl);
 
 /**
  * API route prefix used by the backend.
@@ -29,6 +48,9 @@ export const API_PREFIX = import.meta.env.VITE_API_PREFIX || '/api';
  * getApiUrl('/api/health')   // → 'http://localhost:4200/api/health' (no double prefix)
  * getApiUrl('http://...')    // → 'http://...' (returned as-is)
  */
+// Normalize base url to avoid duplicate slashes if env contains trailing '/'
+const normalizedBase = API_BASE_URL.replace(/\/+$|(\/)+$/g, '');
+
 export const getApiUrl = (endpoint: string): string => {
     // If endpoint is already a full URL, return as-is
     if (endpoint.startsWith('http')) {
@@ -37,11 +59,11 @@ export const getApiUrl = (endpoint: string): string => {
 
     // If endpoint already includes api prefix, don't add it again
     if (endpoint.startsWith(API_PREFIX)) {
-        return `${API_BASE_URL}${endpoint}`;
+        return `${normalizedBase}${endpoint}`;
     }
 
     // Add api prefix to endpoint (handle leading slash)
-    return `${API_BASE_URL}${API_PREFIX}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    return `${normalizedBase}${API_PREFIX}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 };
 
 /**
