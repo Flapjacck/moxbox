@@ -79,6 +79,7 @@ setup_env() {
     FE_PORT=$(prompt "Frontend port [5173]: "); FE_PORT=${FE_PORT:-5173}
     FILES_DIR=$(prompt "Files directory [./files]: "); FILES_DIR=${FILES_DIR:-./files}
     ADMIN_USER=$(prompt "Admin username [admin]: "); ADMIN_USER=${ADMIN_USER:-admin}
+    ALLOW_ALL_ORIGINS_ANSWER=$(prompt "Allow all origins for CORS (for dev only) [y/N]: "); ALLOW_ALL_ORIGINS_ANSWER=${ALLOW_ALL_ORIGINS_ANSWER:-N}
     
     # Password with confirmation
     while true; do
@@ -97,6 +98,25 @@ setup_env() {
     JWT=$(node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
     HASH=$(cd "$SCRIPT_DIR/backend" && node -e "console.log(require('bcrypt').hashSync(process.argv[1],10))" "$ADMIN_PASS")
     
+    # Build FRONTEND_URLS containing all non-loopback IPv4 addresses
+    IP_LIST=$(ip -4 addr show 2>/dev/null | awk '/inet / && !/127.0.0.1/ {gsub(/\/.*/, "", $2); print $2}')
+    # Ensure HOST_IP is present
+    if [ -n "$HOST_IP" ] && ! echo "$IP_LIST" | grep -q "^$HOST_IP$" 2>/dev/null; then
+        IP_LIST="$HOST_IP\n$IP_LIST"
+    fi
+
+    if [ -n "$IP_LIST" ]; then
+        FRONTEND_URLS=$(printf "http://%s:%s," $(echo "$IP_LIST" | tr '\n' ' ') $FE_PORT | sed 's/,$//')
+    else
+        FRONTEND_URLS=""
+    fi
+    # Add localhost fallbacks
+    if [ -n "$FRONTEND_URLS" ]; then
+        FRONTEND_URLS="$FRONTEND_URLS,http://localhost:$FE_PORT,http://127.0.0.1:$FE_PORT"
+    else
+        FRONTEND_URLS="http://localhost:$FE_PORT,http://127.0.0.1:$FE_PORT"
+    fi
+
     # Backend .env
     cat > "$BE_ENV" <<EOF
 PORT=$BE_PORT
@@ -106,8 +126,8 @@ ADMIN_USERNAME=$ADMIN_USER
 ADMIN_PASSWORD_HASH=$HASH
 FILES_DIR=$FILES_DIR
 FRONTEND_URL=http://$HOST_IP:$FE_PORT
-# Also allow multiple common frontend origins (local & detected host)
-FRONTEND_URLS=http://$HOST_IP:$FE_PORT,http://localhost:$FE_PORT
+FRONTEND_URLS=$FRONTEND_URLS
+ALLOW_ALL_ORIGINS=$( [ "${ALLOW_ALL_ORIGINS_ANSWER#y}" != "$ALLOW_ALL_ORIGINS_ANSWER" ] && echo true || echo false )
 EOF
     
     # Frontend .env
