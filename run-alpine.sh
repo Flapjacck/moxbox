@@ -65,10 +65,10 @@ setup_env() {
     info "Configuring environment..."
     
     # Auto-detect all non-localhost IPv4 addresses
-    DETECTED_IPS=$(hostname -I 2>/dev/null || true)
-    if [ -z "$DETECTED_IPS" ]; then
-        DETECTED_IPS=$(ip -4 addr show 2>/dev/null | awk '/inet / && !/127.0.0.1/ {gsub(/\/.*/, "", $2); print $2}' | tr '\n' ' ')
-    fi
+    # Combine IPs from both hostname -I and `ip addr` to include all interfaces like tailscale
+    DETECTED_IPS="$(hostname -I 2>/dev/null || true) $(ip -4 addr show 2>/dev/null | awk '/inet / && !/127.0.0.1/ {gsub(/\/.*/, "", $2); print $2}' | tr '\n' ' ')"
+    # Normalize list: split, unique, remove empties
+    DETECTED_IPS=$(echo "$DETECTED_IPS" | tr ' ' '\n' | awk '!seen[$0]++ && length($0)>0 {print $0}' | tr '\n' ' ')
     # Default to first detected IP or localhost
     DETECTED_IP=$(echo "$DETECTED_IPS" | awk '{print $1}')
     [ -z "$DETECTED_IP" ] && DETECTED_IP="localhost"

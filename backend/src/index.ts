@@ -23,6 +23,8 @@ const allowedOrigins = allowedOriginsRaw
     .map(s => s.trim())
     .filter(Boolean);
 
+info(`CORS allowlist: ${allowedOrigins.join(', ')}`);
+
 app.use(cors({
     origin: (origin, callback) => {
         // allow requests with no origin (curl, server-to-server)
