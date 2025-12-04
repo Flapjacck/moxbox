@@ -106,11 +106,22 @@ ADMIN_USERNAME=$ADMIN_USER
 ADMIN_PASSWORD_HASH=$HASH
 FILES_DIR=$FILES_DIR
 FRONTEND_URL=http://$HOST_IP:$FE_PORT
+# Also allow multiple common frontend origins (local & detected host)
+FRONTEND_URLS=http://$HOST_IP:$FE_PORT,http://localhost:$FE_PORT
 EOF
     
     # Frontend .env
+    # Use the new derived-host behavior by default so the frontend will
+    # call the backend using the host you used to access the UI (useful
+    # for multiple IPs like LAN or Tailscale). If you need to force a
+    # specific backend, edit VITE_BACKEND_URL in the file later or run
+    # with --force to regenerate.
     cat > "$FE_ENV" <<EOF
-VITE_BACKEND_URL=http://$HOST_IP:$BE_PORT
+# If you prefer a fixed backend URL instead of deriving host at runtime
+# uncomment this and set the URL. Derivation is enabled below by default.
+# VITE_BACKEND_URL=http://$HOST_IP:$BE_PORT
+VITE_BACKEND_PORT=$BE_PORT
+VITE_BACKEND_USE_DERIVED_HOST=true
 VITE_PORT=$FE_PORT
 EOF
     
