@@ -25,6 +25,37 @@ prompt_hidden() {
     echo "$ans"
 }
 
+# Check whether a TCP port is in use
+is_port_in_use() {
+    port="${1}"
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE "(:|\\[)${port}$" 2>/dev/null
+        return $?
+    elif command -v netstat >/dev/null 2>&1; then
+        netstat -ltn 2>/dev/null | awk '{print $4}' | grep -qE "(:|\\[)${port}$" 2>/dev/null
+        return $?
+    else
+        # If neither ss nor netstat present, be conservative - assume it's in use
+        return 0
+    fi
+}
+
+# Find a free port starting at given value (search up to +1000)
+find_free_port() {
+    start="$1"
+    max=$((start + 1000))
+    p=$start
+    while [ "$p" -le "$max" ]; do
+        if ! is_port_in_use "$p"; then
+            printf "%s" "$p"
+            return 0
+        fi
+        p=$((p + 1))
+    done
+    # fallback to the start port if none is free
+    printf "%s" "$start"
+}
+
 # === ARGS ===
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -73,12 +104,13 @@ setup_env() {
     DETECTED_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
     [ -z "$DETECTED_IP" ] && DETECTED_IP=$(ip -4 addr show 2>/dev/null | awk '/inet / && !/127.0.0.1/ {gsub(/\/.*/, "", $2); print $2; exit}')
     [ -z "$DETECTED_IP" ] && DETECTED_IP="localhost"
-    
-    HOST_IP=$(prompt "Host IP/domain [$DETECTED_IP]: "); HOST_IP=${HOST_IP:-$DETECTED_IP}
-    BE_PORT=$(prompt "Backend port [4200]: "); BE_PORT=${BE_PORT:-4200}
-    FE_PORT=$(prompt "Frontend port [5173]: "); FE_PORT=${FE_PORT:-5173}
+
+    # Auto-set host IP and ports (no prompts)
+    HOST_IP="$DETECTED_IP"
+    BE_PORT=$(find_free_port 4200)
+    FE_PORT=$(find_free_port 5173)
     FILES_DIR=$(prompt "Files directory [./files]: "); FILES_DIR=${FILES_DIR:-./files}
-    ADMIN_USER=$(prompt "Admin username [admin]: "); ADMIN_USER=${ADMIN_USER:-admin}
+    ADMIN_USER=admin
     ALLOW_ALL_ORIGINS_ANSWER=$(prompt "Allow all origins for CORS (for dev only) [y/N]: "); ALLOW_ALL_ORIGINS_ANSWER=${ALLOW_ALL_ORIGINS_ANSWER:-N}
     
     # Password with confirmation
@@ -128,6 +160,8 @@ FILES_DIR=$FILES_DIR
 FRONTEND_URL=http://$HOST_IP:$FE_PORT
 FRONTEND_URLS=$FRONTEND_URLS
 ALLOW_ALL_ORIGINS=$( [ "${ALLOW_ALL_ORIGINS_ANSWER#y}" != "$ALLOW_ALL_ORIGINS_ANSWER" ] && echo true || echo false )
+UPLOAD_MAX_FILE_SIZE=2gb
+UPLOAD_DISALLOWED_MIME_TYPES=
 EOF
     
     # Frontend .env
