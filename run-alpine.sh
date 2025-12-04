@@ -300,6 +300,9 @@ FILES_DIR=${FILES_DIR:-$DEFAULT_FILES_DIR}
 # Normalize FILES_DIR: remove leading ./ if present and collapse slashes
 FILES_DIR=$(printf "%s" "$FILES_DIR" | sed 's@^\./@@; s@/*$@@')
 
+ALLOW_ALL_ORIGINS=$(read_env_value "ALLOW_ALL_ORIGINS" "$ROOT_ENV")
+ALLOW_ALL_ORIGINS=${ALLOW_ALL_ORIGINS:-false}
+
 DB_PATH=$(read_env_value "DATABASE_PATH" "$ROOT_ENV")
 DB_PATH=${DB_PATH:-$DEFAULT_DB_PATH}
 
@@ -389,13 +392,17 @@ FRONTEND_PORT=$FE_PORT
 # Add custom domains by appending: ,https://yourdomain.com
 FRONTEND_URLS=$FRONTEND_URLS
 
+# Development helpers (true/false)
+ALLOW_ALL_ORIGINS=$ALLOW_ALL_ORIGINS
+
 # --- Authentication ---
 ADMIN_USERNAME=$ADMIN_USER
 ADMIN_PASSWORD_HASH=$ADMIN_HASH
 JWT_SECRET=$JWT_SECRET
 
 # --- Storage ---
-FILES_DIR=$FILES_DIR
+# Use ./ prefix for relative path to backend cwd
+FILES_DIR=./$FILES_DIR
 DATABASE_PATH=$DB_PATH
 
 # --- Upload Limits ---
@@ -423,6 +430,7 @@ HOST=0.0.0.0
 
 # CORS - comma-separated list of allowed frontend origins
 FRONTEND_URLS=$FRONTEND_URLS
+ALLOW_ALL_ORIGINS=$ALLOW_ALL_ORIGINS
 
 # Authentication
 JWT_SECRET=$JWT_SECRET
@@ -430,7 +438,8 @@ ADMIN_USERNAME=$ADMIN_USER
 ADMIN_PASSWORD_HASH=$ADMIN_HASH
 
 # Storage
-FILES_DIR=$FILES_DIR
+# Use relative path for backend to keep path as ./files
+FILES_DIR=./$FILES_DIR
 DATABASE_PATH=$DB_PATH
 
 # Upload limits
@@ -439,8 +448,10 @@ UPLOAD_DISALLOWED_MIME_TYPES=$BLOCKED_MIME
 EOF
 
 # Ensure files directory exists both in backend root and project root
-_backend_files_dir="$SCRIPT_DIR/backend/$FILES_DIR"
-_root_files_dir="$SCRIPT_DIR/$FILES_DIR"
+# Expand file dir to absolute paths. If FILES_DIR begins with ./, remove that for backend path
+_files_dir_sanitized=$(printf "%s" "$FILES_DIR" | sed 's@^\./@@')
+_backend_files_dir="$SCRIPT_DIR/backend/$_files_dir_sanitized"
+_root_files_dir="$SCRIPT_DIR/$_files_dir_sanitized"
 info "Ensuring files directories exist: backend: $_backend_files_dir , root: $_root_files_dir"
 mkdir -p "$_backend_files_dir" || err "Failed to create backend files dir: $_backend_files_dir"
 mkdir -p "$_root_files_dir" || warn "Failed to create root files dir: $_root_files_dir (non-fatal)"
