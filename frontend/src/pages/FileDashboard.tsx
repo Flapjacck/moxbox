@@ -7,7 +7,7 @@
  * Refactored to use subcomponents for modals, notifications, and grid.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useFileBrowser } from '../features/files/hooks/useFileBrowser';
 import { useFolders } from '../features/folders/hooks/useFolders';
@@ -18,8 +18,23 @@ import { ErrorNotification } from '../features/files/components/ErrorNotificatio
 import { BatchUploadNotification } from '../features/files/components/BatchUploadNotification';
 import { DuplicateConflictModal } from '../features/files/components/DuplicateConflictModal';
 import { BatchUploadConflictModal } from '../features/files/components/BatchUploadConflictModal';
+import { FilePreviewModal } from '../features/files/components/FilePreviewModal';
 import { FileGrid } from '../features/files/components/FileGrid';
+import { downloadFileById } from '../features/files/services/fileService';
+import { getPreviewType } from '../utils';
 import type { FileItem, ConflictPayload } from '../features/files/types/file.types';
+
+// ============================================
+// Types
+// ============================================
+
+/** State for file preview modal */
+interface PreviewState {
+  file: FileItem;
+  blobUrl: string | null;
+  textContent: string | null;
+  isLoading: boolean;
+}
 
 // ============================================
 // Component
@@ -34,6 +49,9 @@ export const FileDashboard = () => {
 
   // Create folder modal state
   const [showCreateFolder, setShowCreateFolder] = useState(false);
+
+  // File preview state
+  const [previewState, setPreviewState] = useState<PreviewState | null>(null);
 
   // Duplicate upload conflict state
   const [duplicateConflict, setDuplicateConflict] = useState<{
@@ -104,6 +122,38 @@ export const FileDashboard = () => {
     await createFolder(newPath);
     await refresh();
   };
+
+  // Preview file handler - fetches blob and opens modal
+  const handlePreview = useCallback(async (file: FileItem) => {
+    // Set loading state immediately
+    setPreviewState({ file, blobUrl: null, textContent: null, isLoading: true });
+
+    try {
+      const blob = await downloadFileById(file.id);
+      const previewType = getPreviewType(file.mimeType);
+
+      if (previewType === 'text') {
+        // For text files, read as text
+        const text = await blob.text();
+        setPreviewState({ file, blobUrl: null, textContent: text, isLoading: false });
+      } else {
+        // For binary files (image, video, audio, pdf), create blob URL
+        const url = URL.createObjectURL(blob);
+        setPreviewState({ file, blobUrl: url, textContent: null, isLoading: false });
+      }
+    } catch (err) {
+      console.error('Preview failed:', err);
+      setPreviewState(null);
+    }
+  }, []);
+
+  // Close preview and cleanup blob URL
+  const handleClosePreview = useCallback(() => {
+    if (previewState?.blobUrl) {
+      URL.revokeObjectURL(previewState.blobUrl);
+    }
+    setPreviewState(null);
+  }, [previewState]);
 
   // Duplicate conflict handlers
   const onDuplicate = (data: { conflict: ConflictPayload | null; file: File }) => {
@@ -181,6 +231,7 @@ export const FileDashboard = () => {
           files={filteredFiles}
           folders={filteredFolders}
           view={view}
+          onPreview={handlePreview}
           onDownload={handleDownload}
           onDelete={handleDelete}
           onFolderClick={handleFolderClick}
@@ -215,6 +266,17 @@ export const FileDashboard = () => {
           onCancel={cancelBatchUpload}
         />
       )}
+
+      {/* File preview modal */}
+      <FilePreviewModal
+        file={previewState?.file ?? null}
+        blobUrl={previewState?.blobUrl ?? null}
+        textContent={previewState?.textContent ?? null}
+        isOpen={previewState !== null}
+        isLoading={previewState?.isLoading ?? false}
+        onClose={handleClosePreview}
+        onDownload={handleDownload}
+      />
     </div>
   );
 };
