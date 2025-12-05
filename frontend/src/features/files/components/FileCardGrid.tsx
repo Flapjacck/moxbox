@@ -1,14 +1,16 @@
 import { motion } from 'motion/react';
-import { DownloadCloud, Trash2, RotateCcw, XCircle } from 'lucide-react';
+import { Eye, DownloadCloud, Trash2, RotateCcw, XCircle } from 'lucide-react';
 import type { FC } from 'react';
 import type { FileItem, FileType } from '../types/file.types';
 import { formatFileSize, formatDate } from '../utils/fileUtils';
 import FileIcon from './FileIcon';
+import { isPreviewable } from '../../../utils';
 
 /** Props for internal grid card component */
 interface FileCardGridInternalProps {
   file: FileItem;
   fileType: FileType;
+  onPreview?: (file: FileItem) => void;
   onDownload?: (file: FileItem) => void;
   onDelete?: (file: FileItem) => void;
   onRestore?: (file: FileItem) => void;
@@ -24,6 +26,7 @@ interface FileCardGridInternalProps {
 export const FileCardGrid: FC<FileCardGridInternalProps> = ({
   file,
   fileType = 'other',
+  onPreview,
   onDownload,
   onDelete,
   onRestore,
@@ -31,6 +34,7 @@ export const FileCardGrid: FC<FileCardGridInternalProps> = ({
   className = '',
 }) => {
   const isDeleted = file.status === 'deleted';
+  const canPreview = isPreviewable(file.mimeType);
   const base =
     'bg-[#161B22] border border-[#30363D] rounded-lg text-[#C9D1D9] overflow-hidden transition-shadow duration-200 hover:border-[#6BCB77] hover:shadow-[0_10px_30px_rgba(107,203,119,0.06)]';
 
@@ -98,8 +102,18 @@ export const FileCardGrid: FC<FileCardGridInternalProps> = ({
             </button>
           </>
         ) : (
-          // Normal view actions: download & soft delete
+          // Normal view actions: preview, download & soft delete
           <>
+            {canPreview && (
+              <button
+                onClick={() => onPreview?.(file)}
+                aria-label="preview"
+                title="Preview file"
+                className="p-1 hover:bg-[#0D1117] rounded group-hover:text-[#58A6FF]"
+              >
+                <Eye className="w-5 h-5" />
+              </button>
+            )}
             <button
               onClick={() => onDownload?.(file)}
               aria-label="download"

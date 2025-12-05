@@ -23,6 +23,8 @@ export interface FileGridProps {
   folders: DirectoryEntry[];
   /** Layout variant */
   view: 'list' | 'grid';
+  /** Preview file callback */
+  onPreview: (file: FileItem) => void;
   /** Download file callback */
   onDownload: (file: FileItem) => void;
   /** Delete file callback */
@@ -46,6 +48,7 @@ export const FileGrid = ({
   files,
   folders,
   view,
+  onPreview,
   onDownload,
   onDelete,
   onFolderClick,
@@ -81,6 +84,7 @@ export const FileGrid = ({
           key={file.id}
           file={file}
           variant={view}
+          onPreview={onPreview}
           onDownload={onDownload}
           onDelete={onDelete}
         />
