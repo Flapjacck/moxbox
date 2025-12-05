@@ -19,4 +19,4 @@ export {
 export { buildBreadcrumbs, getParentPath } from './breadcrumbs';
 
 // Download utilities
-export { downloadBlob, isPreviewableImage, isPreviewablePdf } from './download';
+export { downloadBlob, isPreviewableImage, isPreviewablePdf, isPreviewableVideo, isPreviewableAudio, isPreviewableText, isPreviewable, getPreviewType } from './download';

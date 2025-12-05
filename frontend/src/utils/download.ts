@@ -62,3 +62,84 @@ export const isPreviewableImage = (mimeType: string | null): boolean => {
 export const isPreviewablePdf = (mimeType: string | null): boolean => {
     return mimeType === 'application/pdf';
 };
+
+/**
+ * Determines if a MIME type represents a video that can be previewed.
+ *
+ * @param mimeType - The file's MIME type
+ * @returns true if the file is a previewable video
+ */
+export const isPreviewableVideo = (mimeType: string | null): boolean => {
+    if (!mimeType) return false;
+    const previewable = ['video/mp4', 'video/webm', 'video/ogg'];
+    return previewable.includes(mimeType);
+};
+
+/**
+ * Determines if a MIME type represents an audio file that can be previewed.
+ *
+ * @param mimeType - The file's MIME type
+ * @returns true if the file is a previewable audio file
+ */
+export const isPreviewableAudio = (mimeType: string | null): boolean => {
+    if (!mimeType) return false;
+    const previewable = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm', 'audio/mp3'];
+    return previewable.includes(mimeType);
+};
+
+/**
+ * Determines if a MIME type represents a text/code file that can be previewed.
+ *
+ * @param mimeType - The file's MIME type
+ * @returns true if the file is a previewable text file
+ */
+export const isPreviewableText = (mimeType: string | null): boolean => {
+    if (!mimeType) return false;
+    const textTypes = [
+        'text/plain',
+        'text/markdown',
+        'text/csv',
+        'text/css',
+        'text/javascript',
+        'text/html',
+        'text/xml',
+        'application/json',
+        'application/xml',
+        'application/javascript',
+    ];
+    // Also match any text/* type
+    return textTypes.includes(mimeType) || mimeType.startsWith('text/');
+};
+
+/**
+ * Determines if a file can be previewed based on its MIME type.
+ *
+ * @param mimeType - The file's MIME type
+ * @returns true if the file supports preview
+ */
+export const isPreviewable = (mimeType: string | null): boolean => {
+    return (
+        isPreviewableImage(mimeType) ||
+        isPreviewablePdf(mimeType) ||
+        isPreviewableVideo(mimeType) ||
+        isPreviewableAudio(mimeType) ||
+        isPreviewableText(mimeType)
+    );
+};
+
+/**
+ * Returns the preview type category for a given MIME type.
+ *
+ * @param mimeType - The file's MIME type
+ * @returns Preview type: 'image' | 'pdf' | 'video' | 'audio' | 'text' | null
+ */
+export const getPreviewType = (
+    mimeType: string | null
+): 'image' | 'pdf' | 'video' | 'audio' | 'text' | null => {
+    if (isPreviewableImage(mimeType)) return 'image';
+    if (isPreviewablePdf(mimeType)) return 'pdf';
+    if (isPreviewableVideo(mimeType)) return 'video';
+    if (isPreviewableAudio(mimeType)) return 'audio';
+    if (isPreviewableText(mimeType)) return 'text';
+    return null;
+};
