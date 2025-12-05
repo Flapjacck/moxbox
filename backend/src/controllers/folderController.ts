@@ -28,6 +28,15 @@ export async function createFolder(req: Request, res: Response) {
         throw new ValidationError('Invalid folder path');
     }
 
+
+    // Check if folder already exists before creating
+    const fs = require('fs');
+    const absPath = require('../utils/pathSanitizer').resolveSecurePath(require('../config/env').FILES_DIR, folderPath);
+    if (fs.existsSync(absPath)) {
+        // Throw a validation error with a clear message for the frontend
+        throw new ValidationError('A folder with that name already exists in this location.');
+    }
+
     await fileStorage.ensureDirectory(folderPath);
 
     info('Folder created', { folder: folderPath });
