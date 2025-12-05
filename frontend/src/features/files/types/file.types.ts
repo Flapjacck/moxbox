@@ -141,6 +141,8 @@ export interface FileCardProps {
     file: FileItem;
     /** Card layout variant */
     variant?: 'list' | 'grid';
+    /** Preview action callback */
+    onPreview?: (file: FileItem) => void;
     /** Download action callback */
     onDownload?: (file: FileItem) => void;
     /** Delete/trash action callback */

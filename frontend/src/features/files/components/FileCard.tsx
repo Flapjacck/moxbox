@@ -13,6 +13,7 @@ import FileCardList from './FileCardList';
 export const FileCard: FC<FileCardProps> = ({
   file,
   variant = 'list',
+  onPreview,
   onDownload,
   onDelete,
   onRestore,
@@ -28,6 +29,7 @@ export const FileCard: FC<FileCardProps> = ({
       <FileCardGrid
         file={file}
         fileType={resolvedType}
+        onPreview={onPreview}
         onDownload={onDownload}
         onDelete={onDelete}
         onRestore={onRestore}
@@ -41,6 +43,7 @@ export const FileCard: FC<FileCardProps> = ({
     <FileCardList
       file={file}
       fileType={resolvedType}
+      onPreview={onPreview}
       onDownload={onDownload}
       onDelete={onDelete}
       onRestore={onRestore}
