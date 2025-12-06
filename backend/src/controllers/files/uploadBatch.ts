@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import path from 'path';
+import { isUploadAborted } from '../../middleware/uploadTracker';
 import * as fileStorage from '../../utils/fileStorage';
 import { computeSha256 } from '../../utils/fileHash';
 import { ValidationError } from '../../middleware/errors';
@@ -71,6 +72,12 @@ export async function uploadFiles(req: Request, res: Response) {
     const action = req.body?.action as 'replace' | 'keep_both' | undefined;
 
     info('Batch upload received', { fileCount: files.length, action: action || 'none' });
+
+    // If the request was aborted by the client, ensure we don't proceed
+    if (isUploadAborted(req)) {
+        try { await cleanupFiles(files, sanitizedFolders); } catch { /* ignore */ }
+        return res.status(499).json({ message: 'Upload cancelled' });
+    }
 
     // Check conflicts if no action specified
     if (!action) {
