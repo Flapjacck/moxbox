@@ -132,6 +132,22 @@ export interface FileErrorResponse {
 }
 
 // ============================================
+// Upload State Types
+// ============================================
+
+/** Current upload progress state */
+export interface UploadProgress {
+    /** Whether an upload is in progress */
+    isUploading: boolean;
+    /** Upload progress percentage (0-100) */
+    percent: number;
+    /** Number of files being uploaded */
+    fileCount: number;
+    /** Total bytes to upload */
+    totalBytes: number;
+}
+
+// ============================================
 // UI Component Props
 // ============================================
 

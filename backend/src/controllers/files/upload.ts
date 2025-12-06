@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import path from 'path';
+import { isUploadAborted } from '../../middleware/uploadTracker';
 import * as fileStorage from '../../utils/fileStorage';
 import { computeSha256 } from '../../utils/fileHash';
 import { ValidationError } from '../../middleware/errors';
@@ -31,6 +32,12 @@ export async function uploadFile(req: Request, res: Response) {
         originalName: file.originalname,
         folder: sanitizedFolder || '(root)',
     });
+
+    // If the upload was aborted by the client, abort processing and clean up
+    if (isUploadAborted(req)) {
+        try { await fileStorage.deleteFile(storagePath); } catch { /* ignore */ }
+        return res.status(499).json({ message: 'Upload cancelled' });
+    }
 
     // Check for trashed file conflict
     const trashedConflict = getDeletedFileByOriginalNameAndFolder(file.originalname, sanitizedFolder || null);

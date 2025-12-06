@@ -16,6 +16,7 @@ import { Breadcrumbs, CreateFolderModal } from '../features/folders/components';
 import { FileDashboardHeader } from '../features/files/components/FileDashboardHeader';
 import { ErrorNotification } from '../features/files/components/ErrorNotification';
 import { BatchUploadNotification } from '../features/files/components/BatchUploadNotification';
+import { UploadProgressBar } from '../features/files/components/UploadProgressBar';
 import { DuplicateConflictModal } from '../features/files/components/DuplicateConflictModal';
 import { BatchUploadConflictModal } from '../features/files/components/BatchUploadConflictModal';
 import { FilePreviewModal } from '../features/files/components/FilePreviewModal';
@@ -69,11 +70,13 @@ export const FileDashboard = () => {
     error,
     lastBatchResult,
     pendingBatchUpload,
+    uploadProgress,
     navigateTo,
     refresh,
     upload,
     uploadMultiple,
     resolveBatchConflict,
+    cancelUpload,
     cancelBatchUpload,
     download,
     remove,
@@ -191,6 +194,13 @@ export const FileDashboard = () => {
         />
       )}
 
+      {/* Upload progress bar */}
+      {uploadProgress.isUploading && (
+        <div className="mb-4">
+          <UploadProgressBar progress={uploadProgress} onCancel={cancelUpload} />
+        </div>
+      )}
+
       {/* Batch upload result */}
       {lastBatchResult && (
         <BatchUploadNotification result={lastBatchResult} onDismiss={clearBatchResult} />
@@ -206,12 +216,12 @@ export const FileDashboard = () => {
         onUploadMultiple={uploadMultiple}
         onRefresh={refresh}
         count={totalCount}
-        isUploading={isLoading}
+        isUploading={uploadProgress.isUploading}
         onDuplicate={onDuplicate}
       />
 
       {/* Loading state */}
-      {isLoading && (
+      {isLoading && !uploadProgress.isUploading && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 text-[#3D7BF0] animate-spin" />
         </div>

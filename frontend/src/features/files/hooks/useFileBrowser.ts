@@ -1,17 +1,25 @@
 /**
- * useFileBrowser Hook - Combined file/folder browsing with navigation and operations.
+ * useFileBrowser Hook
+ * ====================
+ * Combined file/folder browsing with navigation and upload operations.
+ * Uses useUploadWithProgress for upload logic.
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import { listFolderContents } from '../../folders/services/folderService';
-import { listFiles, uploadFiles as uploadFilesService } from '../services/fileService';
-import { useFileOperations, type PendingBatchUpload } from './useFileOperations';
-import { buildBreadcrumbs, getParentPath, isApiError, getErrorMessage } from '../../../utils';
-import type { FileItem, BatchUploadResponse } from '../types/file.types';
+import { listFiles } from '../services/fileService';
+import { useUploadWithProgress, type PendingBatchUpload } from './useUploadWithProgress';
+import { useFileOperations } from './useFileOperations';
+import { buildBreadcrumbs, getParentPath, getErrorMessage } from '../../../utils';
+import type { FileItem, BatchUploadResponse, UploadProgress } from '../types/file.types';
 import type { DirectoryEntry, BreadcrumbSegment } from '../../folders/types/folder.types';
 
 // Re-export for consumers
 export type { PendingBatchUpload };
+
+// ============================================
+// Types
+// ============================================
 
 /** State shape for file browser */
 export interface UseFileBrowserState {
@@ -23,6 +31,7 @@ export interface UseFileBrowserState {
     error: string | null;
     lastBatchResult: BatchUploadResponse | null;
     pendingBatchUpload: PendingBatchUpload | null;
+    uploadProgress: UploadProgress;
 }
 
 /** Actions for file browser */
@@ -33,6 +42,7 @@ export interface UseFileBrowserActions {
     upload: (file: File, action?: 'replace' | 'keep_both') => Promise<void>;
     uploadMultiple: (files: File[], action?: 'replace' | 'keep_both') => Promise<BatchUploadResponse | null>;
     resolveBatchConflict: (action: 'replace' | 'keep_both') => Promise<void>;
+    cancelUpload: () => void;
     cancelBatchUpload: () => void;
     download: (file: FileItem) => Promise<void>;
     remove: (file: FileItem) => Promise<void>;
@@ -40,7 +50,11 @@ export interface UseFileBrowserActions {
     clearBatchResult: () => void;
 }
 
-/** Combined hook for browsing files and folders. */
+// ============================================
+// Hook
+// ============================================
+
+/** Combined hook for browsing files and folders with upload support. */
 export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions => {
     const [currentPath, setCurrentPath] = useState('');
     const [files, setFiles] = useState<FileItem[]>([]);
@@ -48,9 +62,8 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastBatchResult, setLastBatchResult] = useState<BatchUploadResponse | null>(null);
-    const [pendingBatchUpload, setPendingBatchUpload] = useState<PendingBatchUpload | null>(null);
 
-    // File operations from shared hook
+    // File download/delete operations
     const fileOps = useFileOperations(currentPath);
 
     // Derived: breadcrumbs from current path
@@ -61,19 +74,13 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
         setError(null);
         setIsLoading(true);
         try {
-            // Fetch folder contents (files + subfolders from filesystem)
             const folderResponse = await listFolderContents(path);
             const subfolders = folderResponse.contents.filter((e) => e.type === 'folder');
-
-            // Fetch file metadata from database (active files only)
             const fileResponse = await listFiles('active');
-
-            // Filter files that belong to current folder based on storagePath
             const currentFolderFiles = fileResponse.files.filter((file) => {
                 const fileFolderPath = file.storagePath.split('/').slice(0, -1).join('/');
                 return fileFolderPath === path;
             });
-
             setCurrentPath(path);
             setFolders(subfolders);
             setFiles(currentFolderFiles);
@@ -84,6 +91,13 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
         }
     }, []);
 
+    const refresh = useCallback(async () => {
+        await fetchContents(currentPath);
+    }, [currentPath, fetchContents]);
+
+    // Upload operations with progress
+    const uploadOps = useUploadWithProgress(refresh, setError);
+
     const navigateTo = useCallback(async (path: string) => {
         await fetchContents(path);
     }, [fetchContents]);
@@ -93,87 +107,24 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
         await navigateTo(getParentPath(currentPath));
     }, [currentPath, navigateTo]);
 
-    const refresh = useCallback(async () => {
-        await fetchContents(currentPath);
-    }, [currentPath, fetchContents]);
-
+    // Wrap upload to use current path
     const upload = useCallback(async (file: File, action?: 'replace' | 'keep_both') => {
-        setError(null);
-        setIsLoading(true);
-        try {
-            await fileOps.upload(file, action);
-            await refresh();
-        } catch (err: unknown) {
-            // Bubble up 409 conflicts for caller to handle
-            if (isApiError(err) && err.status === 409) throw err;
-            setError(getErrorMessage(err, 'Upload failed'));
-        } finally {
-            setIsLoading(false);
-        }
-    }, [fileOps, refresh]);
+        await uploadOps.upload(file, currentPath, action);
+    }, [uploadOps, currentPath]);
 
     const uploadMultiple = useCallback(async (
         files: File[],
         action?: 'replace' | 'keep_both'
     ): Promise<BatchUploadResponse | null> => {
-        setError(null);
-        setLastBatchResult(null);
-        setIsLoading(true);
-
-        try {
-            const result = await fileOps.uploadMultiple(files, action);
-
-            // Handle conflicts
-            if (result.pendingUpload) {
-                setPendingBatchUpload(result.pendingUpload);
-                setIsLoading(false);
-                return null;
-            }
-
-            // Handle errors
-            if (result.error) {
-                setError(result.error);
-                setIsLoading(false);
-                return null;
-            }
-
-            // Success
-            setLastBatchResult(result.response);
-            setPendingBatchUpload(null);
-            await refresh();
-            return result.response;
-        } catch (err) {
-            setError(getErrorMessage(err, 'Batch upload failed'));
-            throw err;
-        } finally {
-            setIsLoading(false);
-        }
-    }, [fileOps, refresh]);
+        const result = await uploadOps.uploadMultiple(files, currentPath, action);
+        if (result) setLastBatchResult(result);
+        return result;
+    }, [uploadOps, currentPath]);
 
     const resolveBatchConflict = useCallback(async (action: 'replace' | 'keep_both') => {
-        if (!pendingBatchUpload) return;
-
-        setIsLoading(true);
-        try {
-            const result = await uploadFilesService(
-                pendingBatchUpload.files,
-                currentPath || undefined,
-                action
-            );
-            setLastBatchResult(result);
-            setPendingBatchUpload(null);
-            await refresh();
-        } catch (err) {
-            setError(getErrorMessage(err, 'Upload failed'));
-            setPendingBatchUpload(null);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [pendingBatchUpload, currentPath, refresh]);
-
-    const cancelBatchUpload = useCallback(() => {
-        setPendingBatchUpload(null);
-    }, []);
+        const result = await uploadOps.resolveBatchConflict(currentPath, action);
+        if (result) setLastBatchResult(result);
+    }, [uploadOps, currentPath]);
 
     const download = useCallback(async (file: FileItem) => {
         setError(null);
@@ -210,14 +161,16 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
         isLoading,
         error,
         lastBatchResult,
-        pendingBatchUpload,
+        pendingBatchUpload: uploadOps.pendingBatchUpload,
+        uploadProgress: uploadOps.uploadProgress,
         navigateTo,
         navigateUp,
         refresh,
         upload,
         uploadMultiple,
         resolveBatchConflict,
-        cancelBatchUpload,
+        cancelUpload: uploadOps.cancelUpload,
+        cancelBatchUpload: uploadOps.cancelBatchUpload,
         download,
         remove,
         clearError,

@@ -1,4 +1,5 @@
 import multer, { FileFilterCallback } from 'multer';
+import { info } from '../utils/logger';
 import { Request } from 'express';
 import { FILES_DIR, UPLOAD_MAX_FILE_SIZE, UPLOAD_DISALLOWED_MIME_TYPES } from '../config/env';
 import { ValidationError } from './errors';
@@ -88,15 +89,28 @@ const storage = multer.diskStorage({
             // Keep backward compat: also set sanitizedFolder for single-file uploads
             (req as any).sanitizedFolder = sanitizedFolder;
 
+            // Record sanitized folder on the file object so the filename callback
+            // can know its folder immediately (useful for partial-upload tracking)
+            (file as any)._storageFolder = sanitizedFolder;
+
             cb(null, destPath);
         } catch (err) {
             cb(err instanceof Error ? err : new Error('Invalid folder path'), '');
         }
     },
-    filename: (_req: Request, file: Express.Multer.File, cb) => {
+    filename: (req: Request, file: Express.Multer.File, cb) => {
         // Generate a unique stored filename using random UUID + original extension
         const ext = path.extname(file.originalname) || '';
         const storedName = `${crypto.randomUUID()}${ext}`;
+        // Track partial files as soon as we assign a storage filename — multer
+        // will create the target file on disk shortly after.
+        if (!(req as any).__partialUploadedFiles) {
+            (req as any).__partialUploadedFiles = [];
+        }
+        const folder = (file as any)._storageFolder || (req as any).sanitizedFolder || '';
+        (req as any).__partialUploadedFiles.push({ filename: storedName, folder });
+        try { info('Multer assigned filename', { originalName: file.originalname, storedName, folder }); } catch { /* ignore */ }
+
         cb(null, storedName);
     },
 });
