@@ -2,6 +2,7 @@ import express from 'express';
 import asyncHandler from '../middleware/asyncHandler';
 import authenticate from '../middleware/authenticate';
 import upload from '../middleware/multerHandler';
+import { uploadTracker } from '../middleware/uploadTracker';
 import {
     uploadFile,
     uploadFiles,
@@ -27,23 +28,25 @@ const router = express.Router();
  * @desc    Upload a new file to storage (optionally into a subdirectory)
  * @access  Private (authenticated users)
  * @middleware multer - Handles multipart/form-data, validates file size/type
+ * @middleware uploadTracker - Cleans up files if request is aborted
  * @body    file - The file to upload (multipart)
  * @body    folder - Optional subdirectory path (e.g., "projects/2024")
  * @body    action - Optional upload action when a duplicate exists: 'replace'|'keep_both'
  */
-router.post('/upload', authenticate, upload.single('file'), asyncHandler(uploadFile));
+router.post('/upload', authenticate, uploadTracker, upload.single('file'), asyncHandler(uploadFile));
 
 /**
  * @route   POST /api/files/upload/batch
  * @desc    Upload multiple files at once, preserving folder structure
  * @access  Private (authenticated users)
  * @middleware multer.array - Handles multiple files in multipart/form-data
+ * @middleware uploadTracker - Cleans up files if request is aborted
  * @body    file[] - Array of files to upload
  * @body    relativePath[] - Array of relative paths (from webkitRelativePath) matching file order
  * @body    folder - Optional base folder to upload into
  * @returns { message, totalCount, successCount, failureCount, results[] }
  */
-router.post('/upload/batch', authenticate, upload.array('file'), asyncHandler(uploadFiles));
+router.post('/upload/batch', authenticate, uploadTracker, upload.array('file'), asyncHandler(uploadFiles));
 
 /**
  * @route   GET /api/files
