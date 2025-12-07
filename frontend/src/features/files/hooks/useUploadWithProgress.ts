@@ -10,7 +10,7 @@ import {
     uploadFileWithProgress,
     uploadFilesWithProgress,
 } from '../services/uploadWithProgress';
-import { isApiError, getErrorMessage } from '../../../utils';
+import { isApiError, getErrorMessage, type ApiError } from '../../../utils';
 import type { BatchUploadResponse, UploadProgress, BatchConflictInfo } from '../types/file.types';
 
 // ============================================
@@ -101,9 +101,9 @@ export function useUploadWithProgress(
             if (!result.ok && result.error === 'Upload cancelled') return;
 
             if (result.status === 409) {
-                const err = new Error(result.error || 'Conflict');
-                (err as any).status = 409;
-                (err as any).payload = result.data;
+                const err = new Error(result.error || 'Conflict') as ApiError;
+                err.status = 409;
+                if (result.data) err.payload = result.data as unknown as Record<string, unknown>;
                 throw err;
             }
 
