@@ -7,13 +7,14 @@ import { info, error as logError } from '../utils/logger';
 /**
  * Upload Tracker Middleware
  * =========================
- * Tracks files written by multer and cleans them up if the request is aborted.
- * This prevents orphaned files when users cancel uploads mid-stream.
+ * Tracks files and folders written by multer and cleans them up if the request is aborted.
+ * This prevents orphaned files and empty folders when users cancel uploads mid-stream.
+ * Supports both single/batch file uploads and folder uploads with subdirectory structure.
  *
  * How it works:
  * 1. Attaches an 'aborted' listener to the request
  * 2. When request completes normally, the listener is removed
- * 3. If aborted, deletes any files that multer wrote to disk
+ * 3. If aborted, deletes uploaded files and any created folder structures
  */
 
 /** Tracked upload info stored on request */
@@ -23,7 +24,32 @@ interface UploadTracker {
 }
 
 /**
- * Deletes uploaded files from disk.
+ * Recursively deletes a directory and all its contents.
+ * Used to clean up folder structures created during folder uploads.
+ */
+async function deleteDirectoryRecursive(dirPath: string): Promise<void> {
+    try {
+        const entries = await fs.readdir(dirPath, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dirPath, entry.name);
+            if (entry.isDirectory()) {
+                await deleteDirectoryRecursive(fullPath);
+            } else {
+                await fs.unlink(fullPath);
+            }
+        }
+        await fs.rmdir(dirPath);
+    } catch (err) {
+        // Directory might not exist or is already deleted
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+            logError(`Failed to delete directory: ${dirPath}`, err);
+        }
+    }
+}
+
+/**
+ * Deletes uploaded files and folder structures from disk.
+ * Cleans up both individual files and any folders created during folder uploads.
  * Used for cleanup on abort or error.
  */
 async function cleanupUploadedFiles(req: Request): Promise<void> {
@@ -32,39 +58,45 @@ async function cleanupUploadedFiles(req: Request): Promise<void> {
     tracker.cleaned = true;
 
     const filesToDelete: string[] = [];
+    const foldersToDelete: Set<string> = new Set();
 
     // Single file upload
-    if (req.file) {
+    if (req.file && req.file.filename) {
         const folder = (req as any).sanitizedFolder || '';
         const storagePath = folder
             ? path.posix.join(folder, req.file.filename)
             : req.file.filename;
-        filesToDelete.push(storagePath);
+        if (storagePath) filesToDelete.push(storagePath);
+        if (folder) foldersToDelete.add(folder);
     }
 
-    // Multi-file upload
+    // Multi-file/folder upload
     if (req.files && Array.isArray(req.files)) {
         const sanitizedFolders: string[] = (req as any).sanitizedFolders || [];
         for (let i = 0; i < req.files.length; i++) {
             const file = req.files[i];
+            if (!file || !file.filename) continue; // Skip invalid file entries
             const folder = sanitizedFolders[i] || '';
             const storagePath = folder
                 ? path.posix.join(folder, file.filename)
                 : file.filename;
-            filesToDelete.push(storagePath);
+            if (storagePath) filesToDelete.push(storagePath);
+            if (folder) foldersToDelete.add(folder);
         }
     }
 
-    // Also delete any partial files tracked during upload parsing
+    // Track partial files during upload parsing
     const partial = (req as any).__partialUploadedFiles as Array<{ filename: string; folder?: string; }> | undefined;
     if (partial && partial.length > 0) {
         for (const p of partial) {
+            if (!p || !p.filename) continue; // Skip invalid entries
             const storagePath = p.folder ? path.posix.join(p.folder, p.filename) : p.filename;
-            filesToDelete.push(storagePath);
+            if (storagePath) filesToDelete.push(storagePath);
+            if (p.folder) foldersToDelete.add(p.folder);
         }
     }
 
-    // Delete files in parallel (filter out invalid entries and dedupe)
+    // Delete files first (filter out invalid entries and dedupe)
     const deduped = Array.from(new Set(filesToDelete.filter(Boolean) as string[]));
     if (deduped.length > 0) {
         info(`Cleaning up ${deduped.length} file(s) from aborted upload`, { files: deduped });
@@ -83,6 +115,21 @@ async function cleanupUploadedFiles(req: Request): Promise<void> {
                 }
             })
         );
+    }
+
+    // Delete empty folders created during upload (in reverse order from deepest to shallowest)
+    if (foldersToDelete.size > 0) {
+        const sortedFolders = Array.from(foldersToDelete).sort((a, b) => b.length - a.length);
+        info(`Cleaning up ${sortedFolders.length} folder(s) from aborted upload`, { folders: sortedFolders });
+        for (const folder of sortedFolders) {
+            try {
+                const fullPath = path.join(FILES_DIR, folder);
+                await deleteDirectoryRecursive(fullPath);
+                info(`Deleted orphaned folder: ${folder}`);
+            } catch (err) {
+                logError(`Failed to delete folder: ${folder}`, err);
+            }
+        }
     }
 }
 
