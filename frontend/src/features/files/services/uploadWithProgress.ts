@@ -36,7 +36,7 @@ export interface UploadResult<T> {
  * Performs an XHR upload with progress tracking.
  * Returns a promise that resolves with the parsed JSON response.
  */
-function xhrUpload<T>(
+function xhrUpload<T extends { message?: string }>(
     url: string,
     formData: FormData,
     options?: UploadOptions
@@ -66,7 +66,7 @@ function xhrUpload<T>(
             if (xhr.status >= 200 && xhr.status < 300) {
                 resolve({ ok: true, status: xhr.status, data });
             } else {
-                const errorMsg = (data as any)?.message || `Upload failed (${xhr.status})`;
+                const errorMsg = data?.message || `Upload failed (${xhr.status})`;
                 resolve({ ok: false, status: xhr.status, data, error: errorMsg });
             }
         };
