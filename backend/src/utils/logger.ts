@@ -10,7 +10,17 @@ import { Request, Response, NextFunction } from 'express';
 
 /** Format a timestamped message. Internal helper. */
 function formatMessage(level: string, message: string) {
-    return `[${level}] ${new Date().toISOString()} - ${message}`;
+    const now = new Date();
+    const timestamp = now.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+    return `[${level}] ${timestamp} - ${message}`;
 }
 
 /** Log a simple info message with optional metadata. */
