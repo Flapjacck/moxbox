@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { Folder, Trash2, Edit2 } from 'lucide-react';
 import type { FC } from 'react';
+import { formatFileSize } from '../../files/utils/fileUtils';
 
 /**
  * FolderCard Props
@@ -10,6 +11,8 @@ interface FolderCardProps {
     name: string;
     /** Full folder path */
     path: string;
+    /** Folder size in bytes (optional) */
+    size?: number;
     /** Callback when folder is clicked (navigate into) */
     onClick: (path: string) => void;
     /** Callback for rename action */
@@ -31,6 +34,7 @@ interface FolderCardProps {
 export const FolderCard: FC<FolderCardProps> = ({
     name,
     path,
+    size,
     onClick,
     onRename,
     onDelete,
@@ -59,6 +63,13 @@ export const FolderCard: FC<FolderCardProps> = ({
                 <div className="font-medium text-sm truncate w-full text-center" title={name}>
                     {name}
                 </div>
+
+                {/* Folder size */}
+                {size !== undefined && (
+                    <div className="text-xs text-[#8B949E] mt-1">
+                        {formatFileSize(size)}
+                    </div>
+                )}
 
                 {/* Actions (show on hover) */}
                 <div className="mt-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -99,12 +110,14 @@ export const FolderCard: FC<FolderCardProps> = ({
                 <Folder className="w-5 h-5 text-[#58A6FF]" />
             </div>
 
-            {/* Folder name */}
+            {/* Folder name and size */}
             <div className="flex-1 min-w-0">
                 <div className="font-medium truncate" title={name}>
                     {name}
                 </div>
-                <div className="text-xs text-[#8B949E]">Folder</div>
+                <div className="text-xs text-[#8B949E]">
+                    Folder {size !== undefined ? `• ${formatFileSize(size)}` : ''}
+                </div>
             </div>
 
             {/* Actions */}

@@ -72,6 +72,7 @@ export const FileGrid = ({
           key={folder.name}
           name={folder.name}
           path={currentPath ? `${currentPath}/${folder.name}` : folder.name}
+          size={folder.size}
           variant={view}
           onClick={onFolderClick}
           onDelete={onFolderDelete}

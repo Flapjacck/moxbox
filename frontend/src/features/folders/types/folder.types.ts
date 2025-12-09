@@ -14,7 +14,7 @@ export interface DirectoryEntry {
     name: string;
     /** Entry type: 'file' or 'folder' */
     type: 'file' | 'folder';
-    /** File size in bytes (only for files) */
+    /** Size in bytes (for files from filesystem, for folders from DB) */
     size?: number;
 }
 
@@ -34,6 +34,7 @@ export interface FolderListResponse {
 export interface CreateFolderResponse {
     message: string;
     path: string;
+    size: number; // Initial size is 0
 }
 
 /** Response from PATCH /api/folders/rename */
@@ -41,6 +42,7 @@ export interface RenameFolderResponse {
     message: string;
     oldPath: string;
     newPath: string;
+    size: number; // Folder size from DB
 }
 
 /** Response from DELETE /api/folders */
