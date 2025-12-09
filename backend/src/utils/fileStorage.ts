@@ -190,14 +190,15 @@ export async function deleteFolder(folderPath: string): Promise<void> {
 export interface DirectoryEntry {
     name: string;
     type: 'file' | 'folder';
-    size?: number;
+    size?: number; // size in bytes: for files from fs.stat, for folders from DB
 }
 
 /**
  * List contents (files and folders) of a directory within FILES_DIR.
+ * Includes file sizes from filesystem and folder sizes from DB.
  *
  * @param folderPath - Relative folder path (empty string = root)
- * @returns Array of directory entries with name and type
+ * @returns Array of directory entries with name, type, and size
  * @throws {FileStorageError} If unable to read the directory
  */
 export async function listDirectoryContents(folderPath: string): Promise<DirectoryEntry[]> {
@@ -213,7 +214,24 @@ export async function listDirectoryContents(folderPath: string): Promise<Directo
                 const stats = await fs.stat(filePath);
                 results.push({ name: entry.name, type: 'file', size: stats.size });
             } else if (entry.isDirectory()) {
-                results.push({ name: entry.name, type: 'folder' });
+                // Construct full folder path for DB lookup
+                const folderFullPath = folderPath
+                    ? `${folderPath}/${entry.name}`
+                    : entry.name;
+
+                // Try to get folder size from DB
+                let folderSize: number | undefined;
+                try {
+                    const { getFolderByPath } = require('../models/folders');
+                    const folderRecord = getFolderByPath(folderFullPath);
+                    if (folderRecord) {
+                        folderSize = folderRecord.size;
+                    }
+                } catch {
+                    // If DB lookup fails, size will be undefined (graceful degradation)
+                }
+
+                results.push({ name: entry.name, type: 'folder', size: folderSize });
             }
         }
 
