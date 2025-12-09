@@ -12,11 +12,13 @@ import {
     generateUniqueOriginalNameInFolder,
     updateFile,
 } from '../../models/files';
+import { ensureAndRecalculateFolderSizes } from '../../utils/folderSizeUtil';
 
 /**
  * POST /api/files/upload
  * Upload a single file to storage, optionally in a subdirectory.
  * Handles conflict detection and resolution via action param.
+ * Recalculates folder size on successful upload.
  */
 export async function uploadFile(req: Request, res: Response) {
     const file = req.file;
@@ -79,6 +81,8 @@ export async function uploadFile(req: Request, res: Response) {
             if (oldStorage && oldStorage !== storagePath) {
                 try { await fileStorage.deleteFile(oldStorage); } catch { /* ignore */ }
             }
+            // Recalculate folder sizes after replace
+            if (sanitizedFolder) ensureAndRecalculateFolderSizes(sanitizedFolder, req.user?.id ?? null);
             return res.status(200).json({ message: 'File replaced', file: updated });
         }
 
@@ -98,6 +102,9 @@ export async function uploadFile(req: Request, res: Response) {
             ownerId: req.user?.id ?? null,
             isPublic: false,
         });
+
+        // Recalculate folder sizes after successful upload
+        if (sanitizedFolder) ensureAndRecalculateFolderSizes(sanitizedFolder, req.user?.id ?? null);
 
         return res.status(201).json({ message: 'File uploaded', file: created });
     } catch (err) {
