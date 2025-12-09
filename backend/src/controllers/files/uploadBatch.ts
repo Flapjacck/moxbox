@@ -12,6 +12,7 @@ import {
     generateUniqueOriginalNameInFolder,
     updateFile,
 } from '../../models/files';
+import { ensureAndRecalculateFolderSizes } from '../../utils/folderSizeUtil';
 import type { BatchFileResult, ConflictInfo } from './types';
 
 /**
@@ -129,6 +130,14 @@ export async function uploadFiles(req: Request, res: Response) {
     }
 
     info('Batch upload completed', { successCount, failureCount });
+
+    // Ensure folder DB records exist and recalculate sizes for all affected folders
+    // This handles cases where files are uploaded before folder creation endpoint is called
+    const affectedFolders = new Set(sanitizedFolders.filter(f => f && f.length > 0));
+    affectedFolders.forEach(folder => {
+        ensureAndRecalculateFolderSizes(folder, req.user?.id ?? null);
+    });
+
     return res.status(200).json({
         message: `Uploaded: ${successCount} succeeded, ${failureCount} failed`,
         totalCount: files.length,

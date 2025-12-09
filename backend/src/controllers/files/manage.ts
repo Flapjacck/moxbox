@@ -7,6 +7,8 @@ import {
 } from '../../models/files';
 import * as fileStorage from '../../utils/fileStorage';
 import { ValidationError, NotFoundError } from '../../middleware/errors';
+import { recalculateParentFolderSizes } from '../../utils/folderSizeUtil';
+import path from 'path';
 
 /**
  * Update file metadata (original_name, is_public, metadata_json)
@@ -22,28 +24,49 @@ export async function updateFileMetadata(req: Request, res: Response) {
 
 /**
  * Soft-delete a file (set status = 'deleted')
+ * Recalculates folder size to include soft-deleted file.
  */
 export async function softDeleteFile(req: Request, res: Response) {
     const id = req.params.id;
     if (!id) throw new ValidationError('File id is required');
+
+    const file = getFileById(id);
+    if (!file) throw new NotFoundError('File not found');
+
     const updated = markFileDeleted(id);
     if (!updated) throw new NotFoundError('File not found');
+
+    // Recalculate folder size (soft-deleted files still count toward size)
+    const folderPath = path.dirname(file.storage_path) === '.' ? '' : path.dirname(file.storage_path);
+    if (folderPath) recalculateParentFolderSizes(folderPath);
+
     return res.status(200).json({ file: updated });
 }
 
 /**
  * Restore a soft-deleted file (set status = 'active')
+ * Recalculates folder size (no change, but ensures consistency).
  */
 export async function restoreFile(req: Request, res: Response) {
     const id = req.params.id;
     if (!id) throw new ValidationError('File id is required');
+
+    const file = getFileById(id);
+    if (!file) throw new NotFoundError('File not found');
+
     const updated = updateFile(id, { status: 'active' });
     if (!updated) throw new NotFoundError('File not found');
+
+    // Recalculate folder size
+    const folderPath = path.dirname(file.storage_path) === '.' ? '' : path.dirname(file.storage_path);
+    if (folderPath) recalculateParentFolderSizes(folderPath);
+
     return res.status(200).json({ file: updated });
 }
 
 /**
  * Permanently delete a file by DB id (removes from storage and DB)
+ * Recalculates folder size after hard deletion.
  */
 export async function permanentDeleteById(req: Request, res: Response) {
     const id = req.params.id;
@@ -60,5 +83,10 @@ export async function permanentDeleteById(req: Request, res: Response) {
     }
 
     deleteFilePermanent(id);
+
+    // Recalculate folder size after hard deletion
+    const folderPath = path.dirname(file.storage_path) === '.' ? '' : path.dirname(file.storage_path);
+    if (folderPath) recalculateParentFolderSizes(folderPath);
+
     return res.status(200).json({ message: 'File permanently deleted', id });
 }
