@@ -2,10 +2,11 @@
  * FileDashboardHeader
  * ====================
  * Header component for the FileDashboard page.
- * Contains the title and action buttons (New Folder, Trash link).
+ * Contains the title, storage indicator, and action buttons.
  */
 
 import { FolderPlus, Trash2 } from 'lucide-react';
+import { StorageIndicator } from './StorageIndicator';
 
 // ============================================
 // Types
@@ -14,6 +15,8 @@ import { FolderPlus, Trash2 } from 'lucide-react';
 export interface FileDashboardHeaderProps {
   /** Callback when "New Folder" is clicked */
   onCreateFolder: () => void;
+  /** Root directory total size (for storage display) */
+  rootSize?: number;
 }
 
 // ============================================
@@ -21,14 +24,18 @@ export interface FileDashboardHeaderProps {
 // ============================================
 
 /**
- * Page header with title and quick actions.
+ * Page header with title, storage indicator, and quick actions.
  */
 export const FileDashboardHeader = ({
   onCreateFolder,
+  rootSize,
 }: FileDashboardHeaderProps) => {
   return (
     <header className="mb-4 flex items-center justify-between">
-      <h1 className="text-2xl font-bold">My Files</h1>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold">My Files</h1>
+        <StorageIndicator totalSize={rootSize} />
+      </div>
       <div className="flex items-center gap-3">
         <button
           onClick={onCreateFolder}

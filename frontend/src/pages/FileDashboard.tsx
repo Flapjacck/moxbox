@@ -107,6 +107,16 @@ export const FileDashboard = () => {
 
   const totalCount = filteredFiles.length + filteredFolders.length;
 
+  // Get root folder size
+  const rootSize = useMemo(() => {
+    // When in root (empty path), find folder entry for root or sum all top-level folder sizes
+    if (currentPath === '' || currentPath === '/') {
+      // Sum sizes of all folders in root (representing total space used)
+      return folders.reduce((acc, folder) => acc + (folder.size ?? 0), 0);
+    }
+    return undefined;
+  }, [folders, currentPath]);
+
   // ----------------------------------------
   // Handlers
   // ----------------------------------------
@@ -181,7 +191,7 @@ export const FileDashboard = () => {
   return (
     <div className="min-h-screen bg-[#0D1117] p-6 text-slate-200">
       {/* Header */}
-      <FileDashboardHeader onCreateFolder={() => setShowCreateFolder(true)} />
+      <FileDashboardHeader onCreateFolder={() => setShowCreateFolder(true)} rootSize={rootSize} />
 
       {/* Breadcrumbs */}
       <Breadcrumbs segments={breadcrumbs} onNavigate={navigateTo} className="mb-4" />
