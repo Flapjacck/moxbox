@@ -4,6 +4,8 @@ import config from './config/env';
 import { initializeDatabase, closeDatabase } from './config/db';
 import { initializeFilesModel } from './models/files';
 import { initializeFoldersModel } from './models/folders';
+import { initializeUsersModel } from './models/users';
+import { initializeFirstUser } from './utils/initUser';
 import routes from './routes';
 import cors from 'cors';
 import { NotFoundError } from './middleware/errors';
@@ -80,6 +82,12 @@ initializeDatabase();
 // Initialize schema for models (tables, indexes, etc.)
 initializeFilesModel();
 initializeFoldersModel();
+initializeUsersModel();
+// Initialize first admin user if database is empty
+initializeFirstUser().catch(err => {
+    console.error('Failed to initialize first user:', err);
+    process.exit(1);
+});
 
 const server = app.listen(config.port, config.host, () => {
     info(`Server listening on ${config.host}:${config.port} — http://${config.host}:${config.port}/`);
