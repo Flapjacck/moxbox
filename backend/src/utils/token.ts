@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import config from '../config/env';
 import type { UserClaim } from '../types/auth';
+import { getUserById } from '../models/users';
 
 /*
  * Utilities to sign and verify JWT tokens for this application.
@@ -60,6 +61,25 @@ export function verifyToken(token: string): UserClaim {
     const obj = decoded as Partial<UserClaim>;
     if (!obj.id || !obj.username || !obj.role) {
         throw new Error('Invalid token claims: missing required fields');
+    }
+
+    // Verify the user still exists in the database
+    try {
+        const userRecord = getUserById(obj.id);
+        if (!userRecord) {
+            throw new Error('Token invalid: user no longer exists');
+        }
+
+        // If a version field is present in the token, ensure it matches the
+        // current user record version (created_at/updated_at). This allows
+        // token invalidation when a user's password or record changes.
+        const currentVersion = userRecord.updated_at ?? userRecord.created_at;
+        if (obj.v && obj.v !== currentVersion) {
+            throw new Error('Token invalidated: user record changed');
+        }
+    } catch (err) {
+        // Re-throw as a generic error so middleware can translate to auth error
+        throw new Error((err as Error).message || 'Invalid token');
     }
     return obj as UserClaim;
 }

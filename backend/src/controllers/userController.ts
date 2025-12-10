@@ -43,6 +43,9 @@ export async function loginUser(req: Request, res: Response) {
         id: user.id,
         username: user.username,
         role: user.is_admin ? 'admin' : 'user',
+        // Include a version derived from the user's timestamps so tokens
+        // become invalid when the user's record changes (password reset, etc.)
+        v: user.updated_at ?? user.created_at,
     };
 
     const token = signToken(userClaim);
