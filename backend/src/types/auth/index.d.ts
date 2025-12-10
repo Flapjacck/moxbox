@@ -10,6 +10,7 @@ export interface UserClaim {
     id: string;
     username: string;
     role: string;
+    v?: string; // Used to invalidate tokens when user record changes
     iat?: number;
     exp?: number;
 }
