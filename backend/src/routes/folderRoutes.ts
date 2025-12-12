@@ -5,6 +5,7 @@ import {
     createFolder,
     renameFolder,
     deleteFolder,
+    getRootFolderInfo,
     listFolderContents,
 } from '../controllers/folderController';
 
@@ -15,6 +16,13 @@ const router = express.Router();
  * - Manage directories within FILES_DIR
  * - All paths are relative to FILES_DIR root
  */
+
+/**
+ * @route   GET /api/folders/root
+ * @desc    Get root folder size info (space used at root level)
+ * @access  Private (authenticated users)
+ */
+router.get('/root', authenticate, asyncHandler(getRootFolderInfo));
 
 /**
  * @route   POST /api/folders

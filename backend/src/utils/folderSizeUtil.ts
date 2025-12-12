@@ -12,22 +12,32 @@ import * as logger from './logger';
 /**
  * calculateFolderSizeFromFiles
  * - Calculate the total size of all files (active + soft-deleted) within a folder.
- * - Query files table where storage_path matches the folder path prefix.
+ * - For root folder (empty string), sums ALL files in entire storage (total space used).
+ * - For nested folders, matches files starting with "folderPath/".
  * - Returns the total size in bytes.
  */
 export function calculateFolderSizeFromFiles(folderPath: string): number {
     const db = getDatabase();
 
-    // Match files where storage_path starts with "folderPath/" (but not parent folders)
-    // Also match files directly in the folder (no subdirs) for root
+    // Root folder: sum ALL files in the entire storage (represents total space used)
+    // Nested folder: match files starting with "folderPath/"
+    if (folderPath === '' || folderPath === null) {
+        const stmt = db.prepare(`
+            SELECT COALESCE(SUM(size), 0) as total
+            FROM files
+            WHERE status IN ('active', 'deleted');
+        `);
+        const result = stmt.get() as { total: number };
+        return result?.total ?? 0;
+    }
+
     const stmt = db.prepare(`
         SELECT COALESCE(SUM(size), 0) as total
         FROM files
-        WHERE storage_path LIKE ? OR (storage_path = ?)
+        WHERE storage_path LIKE ?
         AND status IN ('active', 'deleted');
     `);
-
-    const result = stmt.get(`${folderPath}/%`, folderPath) as { total: number };
+    const result = stmt.get(`${folderPath}/%`) as { total: number };
     return result?.total ?? 0;
 }
 
@@ -75,17 +85,52 @@ export function recalculateFolderSize(folderPath: string): number | null {
 /**
  * recalculateParentFolderSizes
  * - Recalculate sizes for the folder and all parent folders up the tree.
+ * - Also updates root folder (empty string) since all files affect root size.
  * - Useful after file operations to ensure all ancestors are updated.
  * - Example: uploading to "projects/2024/docs" updates sizes for
- *   "projects/2024/docs", "projects/2024", and "projects".
+ *   "projects/2024/docs", "projects/2024", "projects", and root.
  */
 export function recalculateParentFolderSizes(folderPath: string): void {
-    const parts = folderPath.split('/').filter(p => p.length > 0);
+    // Always recalculate root folder (empty string represents root)
+    recalculateRootFolderSize();
 
-    // Recalculate the folder itself and all parent folders
-    for (let i = parts.length; i > 0; i--) {
-        const parentPath = parts.slice(0, i).join('/');
-        recalculateFolderSize(parentPath);
+    if (folderPath) {
+        const parts = folderPath.split('/').filter(p => p.length > 0);
+        // Recalculate the folder itself and all parent folders
+        for (let i = parts.length; i > 0; i--) {
+            const parentPath = parts.slice(0, i).join('/');
+            recalculateFolderSize(parentPath);
+        }
+    }
+}
+
+/**
+ * recalculateRootFolderSize
+ * - Special handler for root folder (empty string representation).
+ * - Root folder size = total space used by ALL files in the entire account.
+ * - Creates a root folder record if it doesn't exist, then updates its size.
+ * - This ensures the root folder size persists in the DB for the frontend to query.
+ */
+export function recalculateRootFolderSize(): number | null {
+    try {
+        // Calculate the new size from ALL files in the entire account
+        const newSize = calculateFolderSizeFromFiles('');
+
+        // Get or create root folder record (path = '')
+        let folder = getFolderByPath('');
+        if (!folder) {
+            // First time: create the root folder record
+            folder = createFolder({ path: '', ownerId: null });
+            logger.info('Auto-created root folder DB record');
+        }
+
+        // Update the root folder size in DB
+        const updated = updateFolderSize(folder.id, newSize);
+        logger.info('Root folder size recalculated and persisted', { size: newSize });
+        return updated?.size ?? newSize;
+    } catch (err) {
+        logger.error('Failed to recalculate root folder size', err);
+        return null;
     }
 }
 
@@ -93,9 +138,16 @@ export function recalculateParentFolderSizes(folderPath: string): void {
  * ensureAndRecalculateFolderSizes
  * - Ensure folder DB records exist for the given path and all parents.
  * - Then recalculate sizes for all of them.
+ * - For root folder (empty string), only recalculate size (no DB record needed).
  * - Used when files are uploaded before folder creation endpoint is called.
  */
 export function ensureAndRecalculateFolderSizes(folderPath: string, ownerId?: string | null): void {
+    // Handle root folder separately (no DB record needed)
+    if (folderPath === '' || folderPath === null) {
+        recalculateRootFolderSize();
+        return;
+    }
+
     const parts = folderPath.split('/').filter(p => p.length > 0);
 
     // Ensure all folders in the path exist in the DB

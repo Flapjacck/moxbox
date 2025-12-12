@@ -133,7 +133,8 @@ export async function uploadFiles(req: Request, res: Response) {
 
     // Ensure folder DB records exist and recalculate sizes for all affected folders
     // This handles cases where files are uploaded before folder creation endpoint is called
-    const affectedFolders = new Set(sanitizedFolders.filter(f => f && f.length > 0));
+    // Include root folder (empty string) to fix space tracking for root uploads
+    const affectedFolders = new Set(sanitizedFolders);
     affectedFolders.forEach(folder => {
         ensureAndRecalculateFolderSizes(folder, req.user?.id ?? null);
     });

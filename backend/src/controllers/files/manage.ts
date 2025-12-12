@@ -37,8 +37,9 @@ export async function softDeleteFile(req: Request, res: Response) {
     if (!updated) throw new NotFoundError('File not found');
 
     // Recalculate folder size (soft-deleted files still count toward size)
+    // Always recalculate, even for root folder
     const folderPath = path.dirname(file.storage_path) === '.' ? '' : path.dirname(file.storage_path);
-    if (folderPath) recalculateParentFolderSizes(folderPath);
+    recalculateParentFolderSizes(folderPath);
 
     return res.status(200).json({ file: updated });
 }
@@ -58,8 +59,9 @@ export async function restoreFile(req: Request, res: Response) {
     if (!updated) throw new NotFoundError('File not found');
 
     // Recalculate folder size
+    // Always recalculate, even for root folder
     const folderPath = path.dirname(file.storage_path) === '.' ? '' : path.dirname(file.storage_path);
-    if (folderPath) recalculateParentFolderSizes(folderPath);
+    recalculateParentFolderSizes(folderPath);
 
     return res.status(200).json({ file: updated });
 }
@@ -85,8 +87,9 @@ export async function permanentDeleteById(req: Request, res: Response) {
     deleteFilePermanent(id);
 
     // Recalculate folder size after hard deletion
+    // Always recalculate, even for root folder
     const folderPath = path.dirname(file.storage_path) === '.' ? '' : path.dirname(file.storage_path);
-    if (folderPath) recalculateParentFolderSizes(folderPath);
+    recalculateParentFolderSizes(folderPath);
 
     return res.status(200).json({ message: 'File permanently deleted', id });
 }

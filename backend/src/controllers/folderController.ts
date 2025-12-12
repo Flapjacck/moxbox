@@ -147,6 +147,22 @@ export async function deleteFolder(req: Request, res: Response) {
         path: folderPath,
     });
 }
+/**
+ * GET /api/folders/root
+ * Get root folder size info (space used at root level).
+ * Returns the cached size of all top-level files.
+ */
+export async function getRootFolderInfo(req: Request, res: Response) {
+    const rootFolder = getFolderByPath('');
+    const size = rootFolder?.size ?? 0;
+
+    info('Root folder info retrieved', { size });
+
+    return res.status(200).json({
+        path: '/',
+        size,
+    });
+}
 
 /**
  * GET /api/folders/list
@@ -173,5 +189,6 @@ export default {
     createFolder,
     renameFolder,
     deleteFolder,
+    getRootFolderInfo,
     listFolderContents,
 };
