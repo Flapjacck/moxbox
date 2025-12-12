@@ -10,13 +10,20 @@ import type { IncomingMessage, ServerResponse } from 'http'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const configPath = path.resolve(__dirname, '../config.yaml')
 
+/** Configuration structure matching config.yaml */
+interface AppConfig {
+  server?: { host?: string };
+  backend?: { port?: number };
+  frontend?: { port?: number };
+}
+
 // Load config at build time
-let buildConfig: any = {}
+let buildConfig: AppConfig = {}
 try {
   const configContent = fs.readFileSync(configPath, 'utf-8')
   const yaml = await import('js-yaml')
-  buildConfig = yaml.load(configContent) as any
-} catch (err) {
+  buildConfig = yaml.load(configContent) as AppConfig
+} catch {
   console.warn('[VITE] Could not load config.yaml, using defaults')
 }
 
@@ -38,8 +45,8 @@ function configYamlPlugin(): Plugin {
             res.setHeader('Content-Type', 'application/yaml; charset=utf-8')
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
             res.end(content)
-          } catch (err) {
-            console.error('[VITE] Error reading config.yaml:', err)
+          } catch (error) {
+            console.error('[VITE] Error reading config.yaml:', error)
             res.statusCode = 500
             res.end('Error reading config')
           }

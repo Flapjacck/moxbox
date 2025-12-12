@@ -11,7 +11,7 @@ server:
 # Backend configuration
 backend:
   # Backend server port - change if port is already in use
-  port: 6969
+  port: 3000
   
   # JWT secret - CHANGE THIS in production! Generate with: openssl rand -base64 32
   jwtSecret: "change-me-to-random-secret-in-production"
@@ -34,17 +34,17 @@ backend:
 # Frontend configuration
 frontend:
   # Frontend dev server port (used by Vite in development)
-  port: 3000
+  port: 5173
   
   # Backend URL for API calls
   # Option 1: Explicitly set the full backend URL (recommended for production)
-  backendUrl: null
+  backendUrl: "http://localhost:3000"
   # backendUrl: "http://192.168.1.100:4200"
   
   # Option 2: Use derived host from window.location (for same-origin deployments)
   # When true: frontend auto-detects backend at window.location.hostname:backend.port
   # When false: uses explicit backendUrl or falls back to localhost:backend.port
-  useDerivedHost: true
+  useDerivedHost: false
 
 # CORS configuration
 # Frontend origin(s) allowed to call backend API

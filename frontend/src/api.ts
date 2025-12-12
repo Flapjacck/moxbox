@@ -8,11 +8,23 @@
 
 import YAML from 'js-yaml';
 
+/** Configuration structure loaded from config.yaml */
+interface AppConfig {
+    server?: { host?: string; port?: number };
+    backend?: { port?: number };
+    frontend?: {
+        port?: number;
+        backendUrl?: string | null;
+        useDerivedHost?: boolean;
+        apiPrefix?: string;
+    };
+}
+
 /**
  * Load configuration from config.yaml (processed at build time by Vite)
  * Falls back to sensible defaults if config not available
  */
-async function loadConfig(): Promise<any> {
+async function loadConfig(): Promise<AppConfig> {
     try {
         console.log('[API] Attempting to fetch /config.yaml...')
         const response = await fetch('/config.yaml', {
@@ -40,9 +52,9 @@ async function loadConfig(): Promise<any> {
 /**
  * Parse YAML configuration using js-yaml library
  */
-function parseYaml(content: string): any {
+function parseYaml(content: string): AppConfig {
     try {
-        return YAML.load(content) as any;
+        return YAML.load(content) as AppConfig;
     } catch (error) {
         console.error('[API] YAML parse error:', error);
         return {};
@@ -52,7 +64,7 @@ function parseYaml(content: string): any {
 /**
  * Default configuration for fallback scenarios
  */
-function getDefaultConfig(): any {
+function getDefaultConfig(): AppConfig {
     return {
         server: { port: 4200, host: '0.0.0.0' },
         backend: { port: 4200 },
@@ -69,10 +81,10 @@ function getDefaultConfig(): any {
  * Initialize API configuration from config.yaml
  * Resolves backend URL based on deployment context
  */
-let configPromise: Promise<any> | null = null;
-let resolvedConfig: any = null;
+let configPromise: Promise<AppConfig> | null = null;
+let resolvedConfig: AppConfig | null = null;
 
-async function getResolvedConfig(): Promise<any> {
+async function getResolvedConfig(): Promise<AppConfig> {
     if (resolvedConfig) return resolvedConfig;
     if (!configPromise) {
         configPromise = loadConfig();
@@ -84,7 +96,7 @@ async function getResolvedConfig(): Promise<any> {
 /**
  * Determine backend URL based on config and deployment context
  */
-function resolveBackendUrl(config: any): string {
+function resolveBackendUrl(config: AppConfig): string {
     const fe = config.frontend || {};
     const backend = config.backend || {};
     const server = config.server || {};
