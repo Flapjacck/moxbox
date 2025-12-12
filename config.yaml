@@ -1,0 +1,58 @@
+# Moxbox Configuration
+# Default settings for self-hosted deployments
+# All values here can be customized per deployment
+
+# Shared server configuration - applies to both backend and frontend
+server:
+  # Bind address - use 0.0.0.0 to accept connections from all interfaces
+  # This allows access from: localhost, LAN IPs, Tailscale, Docker networks
+  host: 0.0.0.0
+
+# Backend configuration
+backend:
+  # Backend server port - change if port is already in use
+  port: 3000
+  
+  # JWT secret - CHANGE THIS in production! Generate with: openssl rand -base64 32
+  jwtSecret: "change-me-to-random-secret-in-production"
+  
+  # Storage directory for uploaded files (relative to BE root)
+  filesDir: "./files"
+  
+  # Database file path (relative to BE root)
+  databasePath: "./db.sqlite"
+  
+  # Max upload file size - supports: b, kb, mb, gb, tb
+  # Examples: "1gb", "500MB", "100kb"
+  uploadMaxFileSize: "1gb"
+  
+  # Block uploads of dangerous MIME types (comma-separated)
+  uploadDisallowedMimeTypes:
+#    - "text/html"
+#    - "application/javascript"
+
+# Frontend configuration
+frontend:
+  # Frontend dev server port (used by Vite in development)
+  port: 5173
+  
+  # Backend URL for API calls
+  # Option 1: Explicitly set the full backend URL (recommended for production)
+  backendUrl: "http://localhost:3000"
+  # backendUrl: "http://192.168.1.100:4200"
+  
+  # Option 2: Use derived host from window.location (for same-origin deployments)
+  # When true: frontend auto-detects backend at window.location.hostname:backend.port
+  # When false: uses explicit backendUrl or falls back to localhost:backend.port
+  useDerivedHost: false
+
+# CORS configuration
+# Frontend origin(s) allowed to call backend API
+# Can be:
+#   - Single URL: "http://192.168.1.100:5173"
+#   - Multiple URLs (comma-separated): "http://192.168.1.100:5173,http://tailscale-ip:5173"
+#   - Leave empty to auto-derive from server.host + frontend port
+corsAllowedOrigins: ""
+
+# Node environment
+nodeEnv: "production"
