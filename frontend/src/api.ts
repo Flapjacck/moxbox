@@ -5,19 +5,21 @@
  * Import and use in feature services (authService, fileService, etc.)
  */
 
+// Declare injected constants from vite.config.ts
+declare const __CONFIG_BACKEND_URL__: string;
+declare const __CONFIG_API_PREFIX__: string;
+
 /**
  * Backend server URL (without /api prefix).
+ * Loaded from config.json at build time via Vite.
+ * 
+ * Priority:
+ * 1) config.json frontend.backendUrl (injected at build time)
+ * 2) VITE_BACKEND_URL env var (explicit override)
+ * 3) VITE_BACKEND_USE_DERIVED_HOST (derive from current hostname)
+ * 4) Fallback to localhost:4200
  */
-// Determine backend base URL.
-// Priority:
-// 1) VITE_BACKEND_URL env var (explicit override)
-// 2) Derive from the current frontend location (same hostname) and VITE_BACKEND_PORT (defaults to 4200)
-// 3) Fallback to localhost:4200 (for environments where window is not available)
-// Optional flag to prefer a derived backend host built from the current frontend
-// host (window.location.hostname). When `true`, the frontend will replace
-// `VITE_BACKEND_URL` with a derived host so requests go back to the same host
-// the frontend was accessed from — useful for multi-interface/dev setups
-// (e.g., local LAN IP vs Tailscale IP).
+const configUrl = typeof __CONFIG_BACKEND_URL__ !== 'undefined' ? __CONFIG_BACKEND_URL__ : undefined;
 const envUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
 const envPort = import.meta.env.VITE_BACKEND_PORT as string | undefined;
 const useDerivedHost = (import.meta.env.VITE_BACKEND_USE_DERIVED_HOST || 'false') === 'true';
@@ -26,15 +28,15 @@ const derivedUrl = typeof window !== 'undefined'
     ? `${window.location.protocol}//${window.location.hostname}:${defaultPort}`
     : `http://localhost:${defaultPort}`;
 
-// If the user explicitly wants a derived host, prefer that over the env URL.
-// Otherwise, fall back to envUrl when defined.
-export const API_BASE_URL = useDerivedHost ? derivedUrl : (envUrl || derivedUrl);
+// Priority: env override > derived host > config.json > derived fallback
+export const API_BASE_URL = envUrl || (useDerivedHost ? derivedUrl : (configUrl || derivedUrl));
 
 /**
  * API route prefix used by the backend.
- * Set VITE_API_PREFIX in .env to override if backend uses different prefix.
+ * Loaded from config.json at build time, with env var fallback.
  */
-export const API_PREFIX = import.meta.env.VITE_API_PREFIX || '/api';
+const configPrefix = typeof __CONFIG_API_PREFIX__ !== 'undefined' ? __CONFIG_API_PREFIX__ : undefined;
+export const API_PREFIX = import.meta.env.VITE_API_PREFIX || configPrefix || '/api';
 
 /**
  * Builds a complete API URL from an endpoint path.

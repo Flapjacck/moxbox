@@ -1,13 +1,32 @@
-// File to manage environment variables and configurations
-import dotenv from 'dotenv';
+// File to manage configuration from config.json
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
-dotenv.config();
+// Load config.json from project root (two levels up from this file)
+const configPath = join(__dirname, '..', '..', '..', 'config.json');
+let configData: any = {};
 
-export const PORT = Number(process.env.PORT) || 3000;
-export const HOST = process.env.HOST || '0.0.0.0';
-export const JWT_SECRET = process.env.JWT_SECRET || '';
-export const FILES_DIR = process.env.FILES_DIR || '/path/to/mounted/proxmox/storage';
-export const DATABASE_PATH = process.env.DATABASE_PATH || './data/moxbox.db';
+try {
+    const configFile = readFileSync(configPath, 'utf-8');
+    configData = JSON.parse(configFile);
+} catch (error) {
+    console.error(`[config] Failed to load config.json from ${configPath}:`, error);
+    console.error('[config] Falling back to environment variables or defaults');
+}
+
+const backend = configData.backend || {};
+const upload = backend.upload || {};
+const cors = backend.cors || {};
+
+// Export individual values with env var fallbacks for backwards compatibility
+export const PORT = Number(process.env.PORT || backend.port) || 3000;
+export const HOST = process.env.HOST || backend.host || '0.0.0.0';
+export const JWT_SECRET = process.env.JWT_SECRET || backend.jwtSecret || '';
+export const FILES_DIR = process.env.FILES_DIR || backend.filesDir || '/path/to/mounted/proxmox/storage';
+export const DATABASE_PATH = process.env.DATABASE_PATH || backend.databasePath || './data/moxbox.db';
+
+// CORS origins from config
+export const CORS_ALLOWED_ORIGINS: string[] = cors.allowedOrigins || [];
 
 /**
  * Parse a human-readable file size string into bytes.
@@ -73,16 +92,24 @@ function parseMimeTypeList(mimeStr: string | undefined): string[] {
         .filter((mime) => mime.length > 0);
 }
 
-export const UPLOAD_MAX_FILE_SIZE = parseFileSize(process.env.UPLOAD_MAX_FILE_SIZE);
+// Upload configuration from config.json with env var fallback
+const maxFileSizeFromConfig = upload.maxFileSize;
+const maxFileSizeFromEnv = process.env.UPLOAD_MAX_FILE_SIZE;
+export const UPLOAD_MAX_FILE_SIZE = parseFileSize(maxFileSizeFromEnv || maxFileSizeFromConfig);
 
 /**
  * List of MIME types that are disallowed for upload (blacklist).
- * Parsed from `UPLOAD_DISALLOWED_MIME_TYPES` env var (comma-separated).
- * Falls back to an empty list if not set
+ * Reads from config.json upload.disallowedMimeTypes array, or falls back to
+ * comma-separated env var, or empty list.
  */
-export const UPLOAD_DISALLOWED_MIME_TYPES: string[] = process.env.UPLOAD_DISALLOWED_MIME_TYPES
+const disallowedFromConfig: string[] = Array.isArray(upload.disallowedMimeTypes)
+    ? upload.disallowedMimeTypes
+    : [];
+const disallowedFromEnv = process.env.UPLOAD_DISALLOWED_MIME_TYPES
     ? parseMimeTypeList(process.env.UPLOAD_DISALLOWED_MIME_TYPES)
     : [];
+export const UPLOAD_DISALLOWED_MIME_TYPES: string[] =
+    disallowedFromEnv.length > 0 ? disallowedFromEnv : disallowedFromConfig;
 
 /**
  * A typed configuration object for the runtime application.
@@ -98,6 +125,8 @@ export interface Config {
     uploadMaxFileSize: number;
     /** List of MIME types that are disallowed for upload */
     uploadDisallowedMimeTypes: string[];
+    /** List of allowed CORS origins */
+    corsAllowedOrigins: string[];
 }
 
 export const config: Config = {
@@ -108,6 +137,7 @@ export const config: Config = {
     databasePath: DATABASE_PATH,
     uploadMaxFileSize: UPLOAD_MAX_FILE_SIZE,
     uploadDisallowedMimeTypes: UPLOAD_DISALLOWED_MIME_TYPES,
+    corsAllowedOrigins: CORS_ALLOWED_ORIGINS,
 };
 
 export default config;

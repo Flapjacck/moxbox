@@ -33,12 +33,10 @@ I mean, IMO thats worth it for 100$ CAD. So not a lot of storage, but I recently
 
 Got Proxmox running on it pretty quickly, which was surprising. Usually anything related to hardware either doesn’t want to work or ends up defective the moment I touch it. I have to play around with the Proxmox settings a bit more now that I’ve brought it to my apartment.
 
-### Size Comparision: M900 vs N3ds XL vs Bic Lighter vs Pokemon Card:
+### Size Comparision: M900 vs N3ds XL vs Bic Lighter vs Pokemon Card
 
 <img src="https://i.imgur.com/cSpBF9v.jpeg" width="300">
 
 ## Open Source & Contributions
 
 I’m more than happy for anyone to contribute, improve features, report issues, or build on top of it. Whether you're fixing a typo or adding a major feature, all contributions are welcome.
-
-

@@ -1,0 +1,31 @@
+{
+    "backend": {
+        "port": 4200,
+        "host": "0.0.0.0",
+        "jwtSecret": "secret-here",
+        "filesDir": "./test",
+        "databasePath": "./database.sqlite",
+        "upload": {
+            "maxFileSize": "1gb",
+            "disallowedMimeTypes": [
+                "text/html",
+                "application/javascript",
+                "text/javascript",
+                "application/x-msdownload",
+                "application/x-msdos-program",
+                "application/x-sh",
+                "application/x-bash",
+                "application/x-php"
+            ]
+        },
+        "cors": {
+            "allowedOrigins": [
+                "http://localhost:5173"
+            ]
+        }
+    },
+    "frontend": {
+        "backendUrl": "http://localhost:4200",
+        "apiPrefix": "/api"
+    }
+}

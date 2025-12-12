@@ -20,18 +20,19 @@ app.use(express.json()); // JSON body parsing middleware
 
 // CORS Configuration
 // ------------------
-// FRONTEND_URLS: comma-separated list of allowed frontend origins (e.g.,
-// "http://localhost:5173,http://10.10.4.208:5173,http://100.74.7.83:5173")
-// ALLOW_ALL_ORIGINS: set to "true" to allow all origins (useful for development only)
+// Reads from config.json cors.allowedOrigins, with environment variable fallback
 const parseAllowedOrigins = (): string[] => {
-    const envUrls = process.env.FRONTEND_URLS || process.env.FRONTEND_URL;
+    // First try config.json
+    if (config.corsAllowedOrigins && config.corsAllowedOrigins.length > 0) {
+        return config.corsAllowedOrigins.map((u) => u.replace(/\/+$/g, ''));
+    }
 
+    // Fallback to env vars
+    const envUrls = process.env.FRONTEND_URLS || process.env.FRONTEND_URL;
     if (!envUrls) {
-        // Default to localhost:5173 if nothing is configured
         return ['http://localhost:5173'];
     }
 
-    // Split by comma, trim, remove trailing slash, and dedupe
     const entries = envUrls
         .split(',')
         .map((u) => u.trim())
@@ -46,9 +47,8 @@ info(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
 
 app.use(cors({
     origin: allowAllOrigins
-        ? true // Reflect the request origin in the Access-Control-Allow-Origin header
+        ? true
         : (origin, callback) => {
-            // Allow requests without an origin (curl/postman)
             if (!origin) return callback(null, true as any);
             const normalized = origin.replace(/\/+$/g, '');
             if (allowedOrigins.includes(normalized)) {
