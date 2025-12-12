@@ -21,6 +21,16 @@ import type {
 // ============================================
 
 /**
+ * Gets root folder size info (total space used at root level).
+ */
+export const getRootFolderInfo = async (): Promise<{ path: string; size: number }> => {
+    const response = await apiFetch('/folders/root', { headers: getAuthHeaders() });
+    if (!response.ok) await handleErrorResponse(response);
+
+    return response.json();
+};
+
+/**
  * Lists contents of a folder (files and subfolders).
  * @param path - Relative folder path (empty string for root)
  */
