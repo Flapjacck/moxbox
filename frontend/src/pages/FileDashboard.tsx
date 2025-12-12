@@ -7,10 +7,11 @@
  * Refactored to use subcomponents for modals, notifications, and grid.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useFileBrowser } from '../features/files/hooks/useFileBrowser';
 import { useFolders } from '../features/folders/hooks/useFolders';
+import { getRootFolderInfo } from '../features/folders/services/folderService';
 import { FileListToolbar } from '../features/files/components/FileListToolbar';
 import { Breadcrumbs, CreateFolderModal } from '../features/folders/components';
 import { FileDashboardHeader } from '../features/files/components/FileDashboardHeader';
@@ -53,6 +54,9 @@ export const FileDashboard = () => {
 
   // File preview state
   const [previewState, setPreviewState] = useState<PreviewState | null>(null);
+
+  // Root folder size state
+  const [rootSize, setRootSize] = useState<number | undefined>(undefined);
 
   // Duplicate upload conflict state
   const [duplicateConflict, setDuplicateConflict] = useState<{
@@ -107,15 +111,20 @@ export const FileDashboard = () => {
 
   const totalCount = filteredFiles.length + filteredFolders.length;
 
-  // Get root folder size
-  const rootSize = useMemo(() => {
-    // When in root (empty path), find folder entry for root or sum all top-level folder sizes
-    if (currentPath === '' || currentPath === '/') {
-      // Sum sizes of all folders in root (representing total space used)
-      return folders.reduce((acc, folder) => acc + (folder.size ?? 0), 0);
-    }
-    return undefined;
-  }, [folders, currentPath]);
+  // Fetch root folder size from API
+  useEffect(() => {
+    const loadRootSize = async () => {
+      try {
+        const data = await getRootFolderInfo();
+        setRootSize(data.size);
+      } catch (err) {
+        console.error('Failed to load root folder size:', err);
+        // Fallback: sum folder sizes if API fails
+        setRootSize(folders.reduce((acc, folder) => acc + (folder.size ?? 0), 0));
+      }
+    };
+    loadRootSize();
+  }, [folders]);
 
   // ----------------------------------------
   // Handlers
