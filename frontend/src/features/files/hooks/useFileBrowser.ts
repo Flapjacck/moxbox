@@ -3,9 +3,11 @@
  * ====================
  * Combined file/folder browsing with navigation and upload operations.
  * Uses useUploadWithProgress for upload logic.
+ * Syncs current path with URL query parameter (?path=...) for persistence.
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { listFolderContents } from '../../folders/services/folderService';
 import { listFiles } from '../services/fileService';
 import { useUploadWithProgress, type PendingBatchUpload } from './useUploadWithProgress';
@@ -56,6 +58,7 @@ export interface UseFileBrowserActions {
 
 /** Combined hook for browsing files and folders with upload support. */
 export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [currentPath, setCurrentPath] = useState('');
     const [files, setFiles] = useState<FileItem[]>([]);
     const [folders, setFolders] = useState<DirectoryEntry[]>([]);
@@ -85,11 +88,24 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
             setFolders(subfolders);
             setFiles(currentFolderFiles);
         } catch (err) {
-            setError(getErrorMessage(err, 'Failed to load contents'));
+            // If path doesn't exist or is invalid, fallback to root
+            const errorMsg = getErrorMessage(err, 'Folder not found');
+            if (path !== '') {
+                setError(`${errorMsg}. Returning to root.`);
+                setCurrentPath('');
+                setFolders([]);
+                setFiles([]);
+                // Update URL to root without path param
+                setSearchParams({});
+                // Recursively load root
+                await fetchContents('');
+            } else {
+                setError(errorMsg);
+            }
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [setSearchParams]);
 
     const refresh = useCallback(async () => {
         await fetchContents(currentPath);
@@ -100,7 +116,13 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
 
     const navigateTo = useCallback(async (path: string) => {
         await fetchContents(path);
-    }, [fetchContents]);
+        // Update URL with path param (omit if empty/root)
+        if (path) {
+            setSearchParams({ path });
+        } else {
+            setSearchParams({});
+        }
+    }, [fetchContents, setSearchParams]);
 
     const navigateUp = useCallback(async () => {
         if (!currentPath) return;
@@ -151,7 +173,11 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
     const clearError = useCallback(() => setError(null), []);
     const clearBatchResult = useCallback(() => setLastBatchResult(null), []);
 
-    useEffect(() => { fetchContents(''); }, [fetchContents]);
+    // On mount: restore path from URL or start at root
+    useEffect(() => {
+        const pathParam = searchParams.get('path') || '';
+        fetchContents(pathParam);
+    }, [fetchContents, searchParams]);
 
     return {
         currentPath,

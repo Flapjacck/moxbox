@@ -6,6 +6,7 @@
  */
 
 import { FolderPlus, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { StorageIndicator } from './StorageIndicator';
 
 // ============================================
@@ -17,6 +18,8 @@ export interface FileDashboardHeaderProps {
   onCreateFolder: () => void;
   /** Root directory total size (for storage display) */
   rootSize?: number;
+  /** Current folder path to restore from trash */
+  currentPath?: string;
 }
 
 // ============================================
@@ -29,7 +32,15 @@ export interface FileDashboardHeaderProps {
 export const FileDashboardHeader = ({
   onCreateFolder,
   rootSize,
+  currentPath = '',
 }: FileDashboardHeaderProps) => {
+  const navigate = useNavigate();
+
+  // Navigate to trash, passing current folder as state for return navigation
+  const handleTrashClick = () => {
+    navigate('/trash', { state: { from: currentPath } });
+  };
+
   return (
     <header className="mb-4 flex items-center justify-between">
       <div className="flex flex-col gap-1">
@@ -44,13 +55,13 @@ export const FileDashboardHeader = ({
           <FolderPlus className="w-4 h-4" />
           New Folder
         </button>
-        <a
-          href="/trash"
+        <button
+          onClick={handleTrashClick}
           className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
         >
           <Trash2 className="w-4 h-4" />
           Trash
-        </a>
+        </button>
       </div>
     </header>
   );

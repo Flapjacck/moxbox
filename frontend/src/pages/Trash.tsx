@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTrash } from '../features/files/hooks/useTrash';
 import { FileCard } from '../features/files/components/FileCard';
 import { Loader2, ArrowLeft, Trash2 } from 'lucide-react';
@@ -9,9 +10,15 @@ import type { FileItem } from '../features/files/types/file.types';
  * Trash Page
  * ===========
  * Page for viewing and managing soft-deleted (trashed) files.
- * Allows restoring files or permanently deleting them.
+ * Allows restoring files to original location or permanently deleting them.
  */
 export const Trash = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the folder path user came from (for back navigation)
+  const fromPath = (location.state as any)?.from || '';
+  
   // View mode toggle (list or grid)
   const [view, setView] = useState<'list' | 'grid'>('list');
 
@@ -41,8 +48,18 @@ export const Trash = () => {
     );
   }, [trashedFiles, pattern]);
 
-  // Handle restore action
-  const handleRestore = (file: FileItem) => restore(file);
+  // Handle restore action - navigate to original folder after restore
+  const handleRestore = async (file: FileItem) => {
+    await restore(file);
+    // Extract folder path from storagePath (remove filename)
+    const folderPath = file.storagePath.split('/').slice(0, -1).join('/');
+    // Navigate to original location with path param
+    if (folderPath) {
+      navigate(`/files?path=${encodeURIComponent(folderPath)}`);
+    } else {
+      navigate('/files');
+    }
+  };
 
   // Handle permanent delete action
   const handlePermanentDelete = (file: FileItem) => permanentDelete(file);
@@ -58,13 +75,20 @@ export const Trash = () => {
       {/* Page header */}
       <header className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <a
-            href="/files"
+          <button
+            onClick={() => {
+              // Navigate back to the folder user was in, or root if none specified
+              if (fromPath) {
+                navigate(`/files?path=${encodeURIComponent(fromPath)}`);
+              } else {
+                navigate('/files');
+              }
+            }}
             className="p-2 rounded hover:bg-[#161B22] transition-colors"
             title="Back to files"
           >
             <ArrowLeft className="w-5 h-5" />
-          </a>
+          </button>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Trash2 className="w-6 h-6" />
             Trash
