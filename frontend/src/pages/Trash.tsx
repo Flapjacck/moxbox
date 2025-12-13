@@ -6,6 +6,11 @@ import { FileCard } from '../features/files/components/FileCard';
 import { Loader2, ArrowLeft, Trash2 } from 'lucide-react';
 import type { FileItem } from '../features/files/types/file.types';
 
+/** Location state passed from FileDashboard when navigating to trash */
+interface TrashLocationState {
+  from?: string;
+}
+
 /**
  * Trash Page
  * ===========
@@ -17,7 +22,7 @@ export const Trash = () => {
   const location = useLocation();
   
   // Get the folder path user came from (for back navigation)
-  const fromPath = (location.state as any)?.from || '';
+  const fromPath = (location.state as TrashLocationState)?.from || '';
   
   // View mode toggle (list or grid)
   const [view, setView] = useState<'list' | 'grid'>('list');
