@@ -200,7 +200,7 @@ export const FileDashboard = () => {
   return (
     <div className="min-h-screen bg-[#0D1117] p-6 text-slate-200">
       {/* Header */}
-      <FileDashboardHeader onCreateFolder={() => setShowCreateFolder(true)} rootSize={rootSize} />
+      <FileDashboardHeader onCreateFolder={() => setShowCreateFolder(true)} rootSize={rootSize} currentPath={currentPath} />
 
       {/* Breadcrumbs */}
       <Breadcrumbs segments={breadcrumbs} onNavigate={navigateTo} className="mb-4" />
