@@ -42,15 +42,15 @@ export const FolderCard: FC<FolderCardProps> = ({
     className = '',
 }) => {
     const base =
-        'bg-[#161B22] border border-[#30363D] rounded-lg text-[#C9D1D9] overflow-hidden transition-shadow duration-200 hover:border-[#58A6FF] hover:shadow-[0_10px_30px_rgba(88,166,255,0.06)] cursor-pointer group';
+        'bg-[#161B22] border border-[#30363D] rounded-lg text-[#C9D1D9] overflow-hidden transition-all duration-200 hover:border-[#2D5F9E] hover:shadow-[0_0_0_1px_rgba(88,166,255,0.1)] cursor-pointer group';
 
     // Grid variant
     if (variant === 'grid') {
         return (
             <motion.div
                 className={`${base} p-3 flex flex-col items-center justify-center h-36 ${className}`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{}}
+                whileTap={{}}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 onClick={() => onClick(path)}
             >
@@ -100,8 +100,8 @@ export const FolderCard: FC<FolderCardProps> = ({
     return (
         <motion.div
             className={`${base} p-3 flex items-center gap-3 ${className}`}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
+            whileHover={{}}
+            whileTap={{}}
             transition={{ duration: 0.12 }}
             onClick={() => onClick(path)}
         >
