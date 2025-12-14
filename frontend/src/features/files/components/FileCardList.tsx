@@ -36,12 +36,12 @@ export const FileCardList: FC<FileCardListInternalProps> = ({
   const isDeleted = file.status === 'deleted';
   const canPreview = isPreviewable(file.mimeType);
   const base =
-    'bg-[#161B22] border border-[#30363D] rounded-lg text-[#C9D1D9] overflow-hidden transition-all duration-200 hover:border-[#6BCB77] hover:shadow-[0_10px_30px_rgba(107,203,119,0.06)]';
+    'bg-[#161B22] border border-[#30363D] rounded-lg text-[#C9D1D9] overflow-hidden transition-all duration-200 hover:border-[#3D7B4F] hover:shadow-[0_0_0_1px_rgba(107,203,119,0.1)]';
 
   return (
     <motion.div
       className={`${base} p-4 flex items-center gap-4 ${className} ${isDeleted ? 'opacity-70' : ''}`}
-      whileHover={{ scale: 1.01 }}
+      whileHover={{}}
       transition={{ duration: 0.12 }}
     >
       {/* File icon */}

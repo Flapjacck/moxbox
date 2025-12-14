@@ -36,12 +36,12 @@ export const FileCardGrid: FC<FileCardGridInternalProps> = ({
   const isDeleted = file.status === 'deleted';
   const canPreview = isPreviewable(file.mimeType);
   const base =
-    'bg-[#161B22] border border-[#30363D] rounded-lg text-[#C9D1D9] overflow-hidden transition-all duration-200 hover:border-[#6BCB77] hover:shadow-[0_10px_30px_rgba(107,203,119,0.06)]';
+    'bg-[#161B22] border border-[#30363D] rounded-lg text-[#C9D1D9] overflow-hidden transition-all duration-200 hover:border-[#3D7B4F] hover:shadow-[0_0_0_1px_rgba(107,203,119,0.1)]';
 
   return (
     <motion.div
       className={`${base} p-3 flex flex-col items-center justify-between h-56 group ${className} ${isDeleted ? 'opacity-70' : ''}`}
-      whileHover={{ scale: 1.02 }}
+      whileHover={{}}
       transition={{ type: 'spring', stiffness: 400, damping: 20 }}
     >
       {/* File icon */}
