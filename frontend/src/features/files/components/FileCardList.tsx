@@ -36,33 +36,33 @@ export const FileCardList: FC<FileCardListInternalProps> = ({
   const isDeleted = file.status === 'deleted';
   const canPreview = isPreviewable(file.mimeType);
   const base =
-    'bg-[#161B22] border border-[#30363D] rounded-lg text-[#C9D1D9] overflow-hidden transition-shadow duration-200 hover:border-[#6BCB77] hover:shadow-[0_10px_30px_rgba(107,203,119,0.06)]';
+    'bg-[#161B22] border border-[#30363D] rounded-lg text-[#C9D1D9] overflow-hidden transition-all duration-200 hover:border-[#6BCB77] hover:shadow-[0_10px_30px_rgba(107,203,119,0.06)]';
 
   return (
     <motion.div
-      className={`${base} p-3 flex items-center gap-3 ${className} ${isDeleted ? 'opacity-70' : ''}`}
+      className={`${base} p-4 flex items-center gap-4 ${className} ${isDeleted ? 'opacity-70' : ''}`}
       whileHover={{ scale: 1.01 }}
       transition={{ duration: 0.12 }}
     >
       {/* File icon */}
-      <div className="w-14 h-14 flex items-center justify-center rounded-md bg-[#0F1724]">
+      <div className="w-12 h-12 flex items-center justify-center rounded-md bg-[#0F1724] shrink-0">
         <FileIcon type={fileType} />
       </div>
 
       {/* File info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 justify-between">
-          <div className="font-medium truncate" title={file.originalName}>
+        <div className="flex items-baseline gap-3 mb-2">
+          <div className="font-semibold text-sm truncate text-[#F0F6FC]" title={file.originalName}>
             {file.originalName}
           </div>
-          <div className="text-sm text-[#8B949E] shrink-0">
+          <div className="text-xs text-[#6B7280] shrink-0">
             {file.size ? formatFileSize(file.size) : '—'}
           </div>
         </div>
         {/* Show folder/dir path when file is in Trash to disambiguate similarly-named files */}
         {isDeleted && (
           <div
-            className="text-sm text-[#8B949E] mt-1 truncate"
+            className="text-xs text-[#6B7280] mb-1 truncate"
             title={
               file.storagePath?.split('/').slice(0, -1).join('/')
                 ? `{root}/${file.storagePath?.split('/').slice(0, -1).join('/')}`
@@ -74,13 +74,13 @@ export const FileCardList: FC<FileCardListInternalProps> = ({
               : '{root}'}
           </div>
         )}
-        <div className="text-sm text-[#8B949E] mt-1">
+        <div className="text-xs text-[#6B7280]">
           {formatDate(file.createdAt)}
         </div>
       </div>
 
       {/* Action buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 shrink-0">
         {isDeleted ? (
           // Trash view actions
           <>
@@ -109,7 +109,7 @@ export const FileCardList: FC<FileCardListInternalProps> = ({
                 aria-label="preview"
                 title="Preview file"
                 onClick={() => onPreview?.(file)}
-                className="p-1 hover:bg-[#0D1117] rounded text-[#58A6FF]"
+                className="p-1 hover:bg-[#0D1117] rounded hover:text-[#58A6FF]"
               >
                 <Eye className="w-5 h-5" />
               </button>
@@ -117,14 +117,14 @@ export const FileCardList: FC<FileCardListInternalProps> = ({
             <button
               aria-label="download"
               onClick={() => onDownload?.(file)}
-              className="p-1 hover:bg-[#0D1117] rounded"
+              className="p-1 hover:bg-[#0D1117] rounded hover:text-[#6BCB77]"
             >
               <DownloadCloud className="w-5 h-5" />
             </button>
             <button
               aria-label="delete"
               onClick={() => onDelete?.(file)}
-              className="p-1 hover:bg-[#0D1117] rounded"
+              className="p-1 hover:bg-[#0D1117] rounded hover:text-[#F85149]"
             >
               <Trash2 className="w-5 h-5" />
             </button>
