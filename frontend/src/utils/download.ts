@@ -43,6 +43,7 @@ export const downloadBlob = (blob: Blob, filename: string): void => {
  */
 export const isPreviewableImage = (mimeType: string | null): boolean => {
     if (!mimeType) return false;
+    const normalizedMimeType = mimeType.trim().toLowerCase();
     const previewable = [
         'image/jpeg',
         'image/png',
@@ -50,7 +51,7 @@ export const isPreviewableImage = (mimeType: string | null): boolean => {
         'image/webp',
         'image/svg+xml',
     ];
-    return previewable.includes(mimeType);
+    return previewable.includes(normalizedMimeType);
 };
 
 /**
@@ -60,7 +61,9 @@ export const isPreviewableImage = (mimeType: string | null): boolean => {
  * @returns true if the file is a PDF
  */
 export const isPreviewablePdf = (mimeType: string | null): boolean => {
-    return mimeType === 'application/pdf';
+    if (!mimeType) return false;
+    const normalizedMimeType = mimeType.trim().toLowerCase();
+    return normalizedMimeType === 'application/pdf';
 };
 
 /**
@@ -71,8 +74,9 @@ export const isPreviewablePdf = (mimeType: string | null): boolean => {
  */
 export const isPreviewableVideo = (mimeType: string | null): boolean => {
     if (!mimeType) return false;
+    const normalizedMimeType = mimeType.trim().toLowerCase();
     const previewable = ['video/mp4', 'video/webm', 'video/ogg'];
-    return previewable.includes(mimeType);
+    return previewable.includes(normalizedMimeType);
 };
 
 /**
@@ -83,8 +87,9 @@ export const isPreviewableVideo = (mimeType: string | null): boolean => {
  */
 export const isPreviewableAudio = (mimeType: string | null): boolean => {
     if (!mimeType) return false;
+    const normalizedMimeType = mimeType.trim().toLowerCase();
     const previewable = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm', 'audio/mp3'];
-    return previewable.includes(mimeType);
+    return previewable.includes(normalizedMimeType);
 };
 
 /**
@@ -95,9 +100,12 @@ export const isPreviewableAudio = (mimeType: string | null): boolean => {
  */
 export const isPreviewableText = (mimeType: string | null): boolean => {
     if (!mimeType) return false;
+    // Normalize: trim whitespace and convert to lowercase
+    const normalizedMimeType = mimeType.trim().toLowerCase();
     const textTypes = [
         'text/plain',
         'text/markdown',
+        'text/typescript',
         'text/csv',
         'text/css',
         'text/javascript',
@@ -108,7 +116,7 @@ export const isPreviewableText = (mimeType: string | null): boolean => {
         'application/javascript',
     ];
     // Also match any text/* type
-    return textTypes.includes(mimeType) || mimeType.startsWith('text/');
+    return textTypes.includes(normalizedMimeType) || normalizedMimeType.startsWith('text/');
 };
 
 /**
