@@ -9,6 +9,20 @@ import fs from 'fs';
 import { sanitizeFolderPath, resolveSecurePath } from '../utils/pathSanitizer';
 
 /**
+ * MIME type mapper for extensions that Multer doesn't recognize by default.
+ * Maps file extensions to their proper MIME types.
+ */
+const MIME_TYPE_MAP: Record<string, string> = {
+    '.ts': 'text/typescript',
+    '.tsx': 'text/typescript',
+    '.js': 'text/javascript',
+    '.jsx': 'text/javascript',
+    '.md': 'text/markdown',
+    '.mdown': 'text/markdown',
+    '.markdown': 'text/markdown',
+};
+
+/**
  * multerHandler middleware
  * - Configures multer for local disk storage with subdirectory support
  * - Supports single-file and multi-file (folder) uploads
@@ -17,7 +31,17 @@ import { sanitizeFolderPath, resolveSecurePath } from '../utils/pathSanitizer';
  * - Stores files in FILES_DIR or subdirectories within it
  * - Generates unique filenames with UUID to avoid collisions
  * - Multi-file uploads preserve client-side folder structure via relativePath field
+ * - Corrects MIME types for unrecognized extensions (e.g., .ts, .md)
  */
+
+/**
+ * Corrects or assigns MIME type based on file extension.
+ * Handles cases where Multer's default MIME detection fails.
+ */
+function correctMimeType(mimeType: string, filename: string): string {
+    const ext = path.extname(filename).toLowerCase();
+    return MIME_TYPE_MAP[ext] || mimeType;
+}
 
 /**
  * Extracts the folder portion from a relative path (e.g., "docs/notes/file.txt" -> "docs/notes").
@@ -126,8 +150,14 @@ const fileFilter = (
     file: Express.Multer.File,
     cb: FileFilterCallback
 ): void => {
+    // Correct MIME type for unrecognized extensions
+    const correctedMimeType = correctMimeType(file.mimetype, file.originalname);
+
+    // Update the file object's mimetype with the corrected value
+    file.mimetype = correctedMimeType;
+
     // Normalize MIME type to lowercase for comparison
-    const mimeType = file.mimetype.toLowerCase();
+    const mimeType = correctedMimeType.toLowerCase();
 
     // Check if the file's MIME type is in the blacklist
     if (UPLOAD_DISALLOWED_MIME_TYPES.includes(mimeType)) {
