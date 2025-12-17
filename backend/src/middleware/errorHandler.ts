@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from './errors';
 import { error as logError } from '../utils/logger';
+import { config } from '../config/env';
 
 /**
  * Centralized error-handling middleware
@@ -67,7 +68,7 @@ export const errorHandler = (
     }
 
     // Include stack trace in non-production environments to help debugging
-    if (process.env.NODE_ENV !== 'production') {
+    if (config.nodeEnv !== 'production') {
         responseBody.stack = (err instanceof Error && err.stack) || undefined;
     }
 

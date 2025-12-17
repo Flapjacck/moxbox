@@ -19,43 +19,22 @@ const app = express();
 app.use(express.json()); // JSON body parsing middleware
 
 // CORS Configuration
-// ------------------
-// FRONTEND_URLS: comma-separated list of allowed frontend origins (e.g.,
-// "http://localhost:5173,http://10.10.4.208:5173,http://100.74.7.83:5173")
-// ALLOW_ALL_ORIGINS: set to "true" to allow all origins (useful for development only)
-const parseAllowedOrigins = (): string[] => {
-    const envUrls = process.env.FRONTEND_URLS || process.env.FRONTEND_URL;
-
-    if (!envUrls) {
-        // Default to localhost:5173 if nothing is configured
-        return ['http://localhost:5173'];
-    }
-
-    // Split by comma, trim, remove trailing slash, and dedupe
-    const entries = envUrls
-        .split(',')
-        .map((u) => u.trim())
-        .filter((u) => u.length > 0)
-        .map((u) => u.replace(/\/+$/g, ''));
-    return Array.from(new Set(entries));
-};
-
-const allowAllOrigins = (process.env.ALLOW_ALL_ORIGINS || '').toLowerCase() === 'true';
-const allowedOrigins = parseAllowedOrigins();
+// Loaded from config.yaml: corsAllowedOrigins
+// When binding to 0.0.0.0, requests from any interface are network-restricted
+// CORS only validates the request origin header
+const allowedOrigins = config.corsAllowedOrigins;
 info(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
 
 app.use(cors({
-    origin: allowAllOrigins
-        ? true // Reflect the request origin in the Access-Control-Allow-Origin header
-        : (origin, callback) => {
-            // Allow requests without an origin (curl/postman)
-            if (!origin) return callback(null, true as any);
-            const normalized = origin.replace(/\/+$/g, '');
-            if (allowedOrigins.includes(normalized)) {
-                return callback(null, true as any);
-            }
-            callback(new Error(`CORS: Origin ${origin} not allowed`));
-        },
+    origin: (origin, callback) => {
+        // Allow requests without an origin (curl/postman)
+        if (!origin) return callback(null, true as any);
+        const normalized = origin.replace(/\/+$/g, '');
+        if (allowedOrigins.includes(normalized)) {
+            return callback(null, true as any);
+        }
+        callback(new Error(`CORS: Origin ${origin} not allowed`));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization']
