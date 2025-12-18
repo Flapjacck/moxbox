@@ -171,17 +171,26 @@ export function getDeletedFileByOriginalNameAndFolder(originalName: string, fold
  * getActiveFileByOriginalNameAndFolder
  * - Find an active file by the display/original filename and the folder it lives in.
  * - Mirrors the trashed lookup but only for active files.
+ * - Optionally excludes a specific file by ID (useful for move conflicts).
  */
-export function getActiveFileByOriginalNameAndFolder(originalName: string, folder?: string | null): FileRecord | null {
+export function getActiveFileByOriginalNameAndFolder(originalName: string, folder?: string | null, excludeId?: string): FileRecord | null {
     const db = getDatabase();
     if (!folder) {
-        const stmt = db.prepare('SELECT * FROM files WHERE original_name = ? AND status = ? AND storage_path NOT LIKE ? LIMIT 1;');
-        const row = stmt.get(originalName, 'active', '%/%');
+        const stmt = excludeId
+            ? db.prepare('SELECT * FROM files WHERE original_name = ? AND status = ? AND storage_path NOT LIKE ? AND id != ? LIMIT 1;')
+            : db.prepare('SELECT * FROM files WHERE original_name = ? AND status = ? AND storage_path NOT LIKE ? LIMIT 1;');
+        const row = excludeId
+            ? stmt.get(originalName, 'active', '%/%', excludeId)
+            : stmt.get(originalName, 'active', '%/%');
         return normalizeRow(row);
     }
 
-    const stmt = db.prepare(`SELECT * FROM files WHERE original_name = ? AND status = 'active' AND storage_path LIKE ? LIMIT 1;`);
-    const row = stmt.get(originalName, `${folder}/%`);
+    const stmt = excludeId
+        ? db.prepare(`SELECT * FROM files WHERE original_name = ? AND status = 'active' AND storage_path LIKE ? AND id != ? LIMIT 1;`)
+        : db.prepare(`SELECT * FROM files WHERE original_name = ? AND status = 'active' AND storage_path LIKE ? LIMIT 1;`);
+    const row = excludeId
+        ? stmt.get(originalName, `${folder}/%`, excludeId)
+        : stmt.get(originalName, `${folder}/%`);
     return normalizeRow(row);
 }
 
