@@ -22,7 +22,6 @@ import { DuplicateConflictModal } from '../features/files/components/DuplicateCo
 import { BatchUploadConflictModal } from '../features/files/components/BatchUploadConflictModal';
 import { FilePreviewModal } from '../features/files/components/FilePreviewModal';
 import { FileGrid } from '../features/files/components/FileGrid';
-import { MoveFileModal } from '../features/files/components/MoveFileModal';
 import { downloadFileById } from '../features/files/services/fileService';
 import { getPreviewType } from '../utils';
 import type { FileItem, ConflictPayload } from '../features/files/types/file.types';
@@ -37,12 +36,6 @@ interface PreviewState {
   blobUrl: string | null;
   textContent: string | null;
   isLoading: boolean;
-}
-
-/** State for file move modal */
-interface MoveState {
-  file: FileItem | null;
-  destinationPath: string;
 }
 
 // ============================================
@@ -61,16 +54,6 @@ export const FileDashboard = () => {
 
   // File preview state
   const [previewState, setPreviewState] = useState<PreviewState | null>(null);
-
-  // File move modal state
-  const [moveState, setMoveState] = useState<MoveState>({ file: null, destinationPath: '' });
-
-  // Move conflict modal state (409 conflict during move)
-  const [moveConflict, setMoveConflict] = useState<{
-    conflict: ConflictPayload | null;
-    file: FileItem;
-    destinationPath: string;
-  } | null>(null);
 
   // Root folder size state
   const [rootSize, setRootSize] = useState<number | undefined>(undefined);
@@ -101,7 +84,6 @@ export const FileDashboard = () => {
     cancelBatchUpload,
     download,
     remove,
-    move,
     clearBatchResult,
     clearError: clearFileError,
   } = useFileBrowser();
@@ -150,9 +132,6 @@ export const FileDashboard = () => {
 
   const handleDownload = (file: FileItem) => download(file);
   const handleDelete = (file: FileItem) => remove(file);
-  const handleMove = (file: FileItem) => {
-    setMoveState({ file, destinationPath: currentPath });
-  };
   const handleFolderClick = (path: string) => navigateTo(path);
 
   const handleFolderDelete = async (path: string) => {
@@ -211,45 +190,6 @@ export const FileDashboard = () => {
       await refresh();
     } catch {
       setDuplicateConflict(null);
-    }
-  };
-
-  const handleMoveFile = async (destinationPath: string) => {
-    if (!moveState.file) return;
-    try {
-      await move(moveState.file, destinationPath);
-      setMoveState({ file: null, destinationPath: '' });
-      setMoveConflict(null);
-      // Success - folder refreshes automatically via move hook
-    } catch (err: any) {
-      // Check if 409 conflict
-      if (err.status === 409 && err.payload?.conflict) {
-        // Show conflict modal instead of just error
-        setMoveConflict({
-          conflict: err.payload.conflict,
-          file: moveState.file,
-          destinationPath,
-        });
-      }
-      // Other errors already handled by move() hook, which sets error state
-    }
-  };
-
-  const handleResolveMoveConflict = async (action: 'replace' | 'keep_both') => {
-    if (!moveConflict) return;
-    try {
-      await move(moveConflict.file, moveConflict.destinationPath, action);
-      setMoveState({ file: null, destinationPath: '' });
-      setMoveConflict(null);
-      // Success
-    } catch (err: any) {
-      // If another conflict after retry, show again
-      if (err.status === 409 && err.payload?.conflict) {
-        setMoveConflict(prev => prev ? { ...prev, conflict: err.payload.conflict } : null);
-      } else {
-        // Other error
-        setMoveConflict(null);
-      }
     }
   };
 
@@ -323,20 +263,8 @@ export const FileDashboard = () => {
           onPreview={handlePreview}
           onDownload={handleDownload}
           onDelete={handleDelete}
-          onMove={handleMove}
           onFolderClick={handleFolderClick}
           onFolderDelete={handleFolderDelete}
-        />
-      )}
-
-      {/* Move file modal */}
-      {moveState.file && (
-        <MoveFileModal
-          file={moveState.file}
-          currentPath={currentPath}
-          folders={folders}
-          onMove={handleMoveFile}
-          onCancel={() => setMoveState({ file: null, destinationPath: '' })}
         />
       )}
 
@@ -347,16 +275,6 @@ export const FileDashboard = () => {
         onCreate={handleCreateFolder}
         currentPath={currentPath}
       />
-
-      {/* Move conflict modal */}
-      {moveConflict && (
-        <DuplicateConflictModal
-          conflict={moveConflict.conflict}
-          file={new File([], moveConflict.file.originalName)}
-          onResolve={handleResolveMoveConflict}
-          onCancel={() => setMoveConflict(null)}
-        />
-      )}
 
       {/* Single file conflict modal */}
       {duplicateConflict && (

@@ -9,7 +9,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { listFolderContents } from '../../folders/services/folderService';
-import { listFiles, moveFile } from '../services/fileService';
+import { listFiles } from '../services/fileService';
 import { useUploadWithProgress, type PendingBatchUpload } from './useUploadWithProgress';
 import { useFileOperations } from './useFileOperations';
 import { buildBreadcrumbs, getParentPath, getErrorMessage } from '../../../utils';
@@ -48,7 +48,6 @@ export interface UseFileBrowserActions {
     cancelBatchUpload: () => void;
     download: (file: FileItem) => Promise<void>;
     remove: (file: FileItem) => Promise<void>;
-    move: (file: FileItem, destinationPath: string, action?: 'replace' | 'keep_both') => Promise<void>;
     clearError: () => void;
     clearBatchResult: () => void;
 }
@@ -171,24 +170,6 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
         }
     }, [fileOps, refresh]);
 
-    const move = useCallback(async (
-        file: FileItem,
-        destinationPath: string,
-        action?: 'replace' | 'keep_both'
-    ) => {
-        setError(null);
-        setIsLoading(true);
-        try {
-            await moveFile(file.id, destinationPath, action);
-            // Refresh both source and destination folders
-            await refresh();
-        } catch (err) {
-            setError(getErrorMessage(err, 'Move failed'));
-        } finally {
-            setIsLoading(false);
-        }
-    }, [refresh]);
-
     const clearError = useCallback(() => setError(null), []);
     const clearBatchResult = useCallback(() => setLastBatchResult(null), []);
 
@@ -218,7 +199,6 @@ export const useFileBrowser = (): UseFileBrowserState & UseFileBrowserActions =>
         cancelBatchUpload: uploadOps.cancelBatchUpload,
         download,
         remove,
-        move,
         clearError,
         clearBatchResult,
     };
