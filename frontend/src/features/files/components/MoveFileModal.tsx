@@ -104,7 +104,7 @@ export const MoveFileModal = ({
     setIsMoving(true);
     try {
       await onMove(selectedPath);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Let caller handle errors (409 conflicts, etc)
       setIsMoving(false);
       throw err;
