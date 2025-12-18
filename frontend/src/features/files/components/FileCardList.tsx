@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Eye, DownloadCloud, Trash2, RotateCcw, XCircle } from 'lucide-react';
+import { Eye, DownloadCloud, Trash2, RotateCcw, XCircle, MoveRight } from 'lucide-react';
 import type { FC } from 'react';
 import type { FileItem, FileType } from '../types/file.types';
 import { formatFileSize, formatDate } from '../utils/fileUtils';
@@ -15,6 +15,7 @@ interface FileCardListInternalProps {
   onDelete?: (file: FileItem) => void;
   onRestore?: (file: FileItem) => void;
   onPermanentDelete?: (file: FileItem) => void;
+  onMove?: (file: FileItem) => void;
   className?: string;
 }
 
@@ -31,6 +32,7 @@ export const FileCardList: FC<FileCardListInternalProps> = ({
   onDelete,
   onRestore,
   onPermanentDelete,
+  onMove,
   className = '',
 }) => {
   const isDeleted = file.status === 'deleted';
@@ -120,6 +122,14 @@ export const FileCardList: FC<FileCardListInternalProps> = ({
               className="p-1 hover:bg-[#0D1117] rounded hover:text-[#6BCB77]"
             >
               <DownloadCloud className="w-5 h-5" />
+            </button>
+            <button
+              aria-label="move"
+              title="Move to folder"
+              onClick={() => onMove?.(file)}
+              className="p-1 hover:bg-[#0D1117] rounded hover:text-[#58A6FF]"
+            >
+              <MoveRight className="w-5 h-5" />
             </button>
             <button
               aria-label="delete"
