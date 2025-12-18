@@ -20,8 +20,5 @@ export {
     permanentDeleteById,
 } from './manage';
 
-// File moving
-export { moveFile } from './move';
-
 // Types
 export type { BatchFileResult, ConflictInfo, BatchUploadResponse, ConflictResponse } from './types';
