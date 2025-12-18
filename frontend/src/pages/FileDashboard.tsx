@@ -25,6 +25,7 @@ import { FileGrid } from '../features/files/components/FileGrid';
 import { MoveFileModal } from '../features/files/components/MoveFileModal';
 import { downloadFileById } from '../features/files/services/fileService';
 import { getPreviewType } from '../utils';
+import { isApiError } from '../utils/apiHelpers';
 import type { FileItem, ConflictPayload } from '../features/files/types/file.types';
 
 // ============================================
@@ -221,12 +222,12 @@ export const FileDashboard = () => {
       setMoveState({ file: null, destinationPath: '' });
       setMoveConflict(null);
       // Success - folder refreshes automatically via move hook
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Check if 409 conflict
-      if (err.status === 409 && err.payload?.conflict) {
+      if (isApiError(err) && err.status === 409 && err.payload?.conflict) {
         // Show conflict modal instead of just error
         setMoveConflict({
-          conflict: err.payload.conflict,
+          conflict: err.payload.conflict as ConflictPayload,
           file: moveState.file,
           destinationPath,
         });
@@ -242,10 +243,10 @@ export const FileDashboard = () => {
       setMoveState({ file: null, destinationPath: '' });
       setMoveConflict(null);
       // Success
-    } catch (err: any) {
+    } catch (err: unknown) {
       // If another conflict after retry, show again
-      if (err.status === 409 && err.payload?.conflict) {
-        setMoveConflict(prev => prev ? { ...prev, conflict: err.payload.conflict } : null);
+      if (isApiError(err) && err.status === 409 && err.payload?.conflict) {
+        setMoveConflict(prev => prev ? { ...prev, conflict: err.payload?.conflict as ConflictPayload } : null);
       } else {
         // Other error
         setMoveConflict(null);
