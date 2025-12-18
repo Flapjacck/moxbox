@@ -31,7 +31,7 @@ export async function moveFile(req: Request, res: Response) {
         action?: 'replace' | 'keep_both';
     };
 
-    if (!destinationPath) throw new ValidationError('destinationPath is required');
+    if (destinationPath === undefined) throw new ValidationError('destinationPath is required');
 
     // Fetch source file
     const file = getFileById(fileId);
@@ -68,8 +68,8 @@ export async function moveFile(req: Request, res: Response) {
         ? path.posix.join(destinationPath, path.posix.basename(file.storage_path))
         : path.posix.basename(file.storage_path);
 
-    // Check for active file conflict in destination
-    const activeConflict = getActiveFileByOriginalNameAndFolder(fileName, destinationPath || null);
+    // Check for active file conflict in destination (excluding the file being moved)
+    const activeConflict = getActiveFileByOriginalNameAndFolder(fileName, destinationPath || null, fileId);
 
     // Return 409 if conflict and no action specified
     if (activeConflict && !action) {
