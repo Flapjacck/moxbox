@@ -9,6 +9,7 @@ import {
 import { getFolderByPath } from '../../models/folders';
 import { ValidationError, NotFoundError } from '../../middleware/errors';
 import { recalculateParentFolderSizes } from '../../utils/folderSizeUtil';
+import fileStorage from '../../utils/fileStorage';
 
 /**
  * POST /api/files/:id/move
@@ -81,6 +82,12 @@ export async function moveFile(req: Request, res: Response) {
 
     // Handle conflict by replacement
     if (action === 'replace' && activeConflict) {
+        // Move physical file first (atomic operation)
+        if (file.storage_path !== newStoragePath) {
+            await fileStorage.ensureDirectory(destinationPath || '');
+            await fileStorage.renameFile(file.storage_path, newStoragePath);
+        }
+
         // Update existing conflict to take this file's data
         const updated = updateFile(activeConflict.id, {
             stored_name: file.stored_name,
@@ -101,6 +108,12 @@ export async function moveFile(req: Request, res: Response) {
     let finalOriginalName = fileName;
     if (action === 'keep_both' && activeConflict) {
         finalOriginalName = generateUniqueOriginalNameInFolder(fileName, destinationPath || null);
+    }
+
+    // Move physical file first (atomic operation)
+    if (file.storage_path !== newStoragePath) {
+        await fileStorage.ensureDirectory(destinationPath || '');
+        await fileStorage.renameFile(file.storage_path, newStoragePath);
     }
 
     // Update file with new path and possibly new name

@@ -115,6 +115,34 @@ export async function deleteFile(storagePath: string): Promise<void> {
 }
 
 /**
+ * Rename (move) a file within FILES_DIR.
+ *
+ * @param oldPath - Current relative file path
+ * @param newPath - New relative file path
+ * @throws {FileNotFoundError} If old file does not exist
+ * @throws {FileStorageError} If rename fails
+ */
+export async function renameFile(oldPath: string, newPath: string): Promise<void> {
+    const oldAbs = resolveSecurePath(FILES_DIR, oldPath);
+    const newAbs = resolveSecurePath(FILES_DIR, newPath);
+
+    try {
+        await fs.access(oldAbs);
+    } catch {
+        throw new FileNotFoundError(`File not found: ${oldPath}`);
+    }
+
+    try {
+        await fs.rename(oldAbs, newAbs);
+    } catch (err) {
+        logger.error(`Failed to rename file: ${oldPath} -> ${newPath}`, err);
+        throw new FileStorageError(
+            `Failed to rename file: ${err instanceof Error ? err.message : 'Unknown error'}`
+        );
+    }
+}
+
+/**
  * Rename (move) a folder within FILES_DIR.
  *
  * @param oldPath - Current relative folder path
@@ -249,6 +277,7 @@ export default {
     ensureDirectory,
     listFiles,
     deleteFile,
+    renameFile,
     renameFolder,
     deleteFolder,
     listDirectoryContents,
