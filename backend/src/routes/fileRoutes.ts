@@ -12,6 +12,7 @@ import {
     softDeleteFile,
     restoreFile,
     permanentDeleteById,
+    moveFile,
 } from '../controllers/files';
 
 const router = express.Router();
@@ -93,5 +94,15 @@ router.post('/id/:id/restore', authenticate, asyncHandler(restoreFile));
  * @access  Private (authenticated users)
  */
 router.delete('/id/:id/permanent', authenticate, asyncHandler(permanentDeleteById));
+
+/**
+ * @route   POST /api/files/id/:id/move
+ * @desc    Move a file from its current folder to a destination folder
+ * @access  Private (authenticated users)
+ * @body    destinationPath - Target folder path (e.g., "projects/2024"); empty string for root
+ * @body    action - Optional conflict resolution: 'replace'|'keep_both'
+ * @returns Updated file object with new storage_path
+ */
+router.post('/id/:id/move', authenticate, asyncHandler(moveFile));
 
 export default router;
