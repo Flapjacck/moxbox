@@ -199,26 +199,3 @@ export const uploadFiles = async (
     if (!response.ok) await handleErrorResponse(response);
     return response.json();
 };
-
-/**
- * Moves a file from its current folder to a destination folder.
- * @param fileId - UUID of the file to move
- * @param destinationPath - Target folder path (empty string for root)
- * @param action - Optional conflict resolution: 'replace' | 'keep_both'
- */
-export const moveFile = async (
-    fileId: string,
-    destinationPath: string,
-    action?: 'replace' | 'keep_both'
-): Promise<FileActionResponse> => {
-    const response = await apiFetch(`/files/id/${encodeURIComponent(fileId)}/move`, {
-        method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ destinationPath, action }),
-    });
-
-    if (!response.ok) await handleErrorResponse(response);
-
-    const data = await response.json();
-    return { message: data.message, file: mapFileRecord(data.file) };
-};

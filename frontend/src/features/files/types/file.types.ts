@@ -167,8 +167,6 @@ export interface FileCardProps {
     onRestore?: (file: FileItem) => void;
     /** Permanent delete callback (for trash view) */
     onPermanentDelete?: (file: FileItem) => void;
-    /** Move to folder callback */
-    onMove?: (file: FileItem) => void;
     /** Additional CSS classes */
     className?: string;
 }
