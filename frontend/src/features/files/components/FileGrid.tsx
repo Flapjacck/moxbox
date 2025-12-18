@@ -29,8 +29,6 @@ export interface FileGridProps {
   onDownload: (file: FileItem) => void;
   /** Delete file callback */
   onDelete: (file: FileItem) => void;
-  /** Move file callback */
-  onMove: (file: FileItem) => void;
   /** Navigate to folder callback */
   onFolderClick: (path: string) => void;
   /** Delete folder callback */
@@ -53,7 +51,6 @@ export const FileGrid = ({
   onPreview,
   onDownload,
   onDelete,
-  onMove,
   onFolderClick,
   onFolderDelete,
 }: FileGridProps) => {
@@ -91,7 +88,6 @@ export const FileGrid = ({
           onPreview={onPreview}
           onDownload={onDownload}
           onDelete={onDelete}
-          onMove={onMove}
         />
       ))}
     </motion.div>

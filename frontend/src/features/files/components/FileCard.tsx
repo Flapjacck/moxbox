@@ -18,7 +18,6 @@ export const FileCard: FC<FileCardProps> = ({
   onDelete,
   onRestore,
   onPermanentDelete,
-  onMove,
   className = '',
 }) => {
   // Infer file type from the original filename for icon display
@@ -35,7 +34,6 @@ export const FileCard: FC<FileCardProps> = ({
         onDelete={onDelete}
         onRestore={onRestore}
         onPermanentDelete={onPermanentDelete}
-        onMove={onMove}
         className={className}
       />
     );
@@ -50,7 +48,6 @@ export const FileCard: FC<FileCardProps> = ({
       onDelete={onDelete}
       onRestore={onRestore}
       onPermanentDelete={onPermanentDelete}
-      onMove={onMove}
       className={className}
     />
   );
