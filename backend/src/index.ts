@@ -1,6 +1,6 @@
 // Main Server File
 import express from 'express';
-import config from './config/env';
+import config, { HOST, FRONTEND_PORT } from './config/env';
 import { initializeDatabase, closeDatabase } from './config/db';
 import { initializeFilesModel } from './models/files';
 import { initializeFoldersModel } from './models/folders';
@@ -20,42 +20,27 @@ app.use(express.json()); // JSON body parsing middleware
 
 // CORS Configuration
 // ------------------
-// FRONTEND_URLS: comma-separated list of allowed frontend origins (e.g.,
-// "http://localhost:5173,http://10.10.4.208:5173,http://100.74.7.83:5173")
-// ALLOW_ALL_ORIGINS: set to "true" to allow all origins (useful for development only)
-const parseAllowedOrigins = (): string[] => {
-    const envUrls = process.env.FRONTEND_URLS || process.env.FRONTEND_URL;
-
-    if (!envUrls) {
-        // Default to localhost:5173 if nothing is configured
-        return ['http://localhost:5173'];
-    }
-
-    // Split by comma, trim, remove trailing slash, and dedupe
-    const entries = envUrls
-        .split(',')
-        .map((u) => u.trim())
-        .filter((u) => u.length > 0)
-        .map((u) => u.replace(/\/+$/g, ''));
-    return Array.from(new Set(entries));
-};
-
-const allowAllOrigins = (process.env.ALLOW_ALL_ORIGINS || '').toLowerCase() === 'true';
-const allowedOrigins = parseAllowedOrigins();
-info(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
+// FRONTEND_PORT: frontend port (default: 5173)
+// Allows requests from any host on this port (localhost, 192.168.x.x, tailscale IPs, etc.)
+info(`CORS: Allowing requests from any host on port ${FRONTEND_PORT}`);
 
 app.use(cors({
-    origin: allowAllOrigins
-        ? true // Reflect the request origin in the Access-Control-Allow-Origin header
-        : (origin, callback) => {
-            // Allow requests without an origin (curl/postman)
-            if (!origin) return callback(null, true as any);
-            const normalized = origin.replace(/\/+$/g, '');
-            if (allowedOrigins.includes(normalized)) {
+    origin: (origin, callback) => {
+        // Allow requests without an origin (curl/postman)
+        if (!origin) return callback(null, true as any);
+
+        try {
+            const url = new URL(origin);
+            const port = url.port ? Number(url.port) : (url.protocol === 'https:' ? 443 : 80);
+
+            // Allow if port matches frontend port (works for any hostname)
+            if (port === FRONTEND_PORT) {
                 return callback(null, true as any);
             }
-            callback(new Error(`CORS: Origin ${origin} not allowed`));
-        },
+        } catch { }
+
+        callback(new Error(`CORS: Origin ${origin} not allowed`));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -89,8 +74,8 @@ initializeFirstUser().catch(err => {
     process.exit(1);
 });
 
-const server = app.listen(config.port, config.host, () => {
-    info(`Server listening on ${config.host}:${config.port} — http://${config.host}:${config.port}/`);
+const server = app.listen(config.port, HOST, () => {
+    info(`Server listening on 0.0.0.0:${config.port} — http://localhost:${config.port}/`);
 });
 
 // Register the global error handler *after* all routes and middleware

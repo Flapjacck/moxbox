@@ -4,7 +4,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const PORT = Number(process.env.PORT) || 3000;
-export const HOST = process.env.HOST || '0.0.0.0';
+export const FRONTEND_PORT = Number(process.env.FRONTEND_PORT) || 5173;
+// Always listen on all interfaces for maximum accessibility (localhost, IPv4, Tailscale, etc.)
+const HOST = '0.0.0.0';
 export const JWT_SECRET = process.env.JWT_SECRET || '';
 export const FILES_DIR = process.env.FILES_DIR || '/path/to/mounted/proxmox/storage';
 export const DATABASE_PATH = process.env.DATABASE_PATH || './data/moxbox.db';
@@ -90,7 +92,6 @@ export const UPLOAD_DISALLOWED_MIME_TYPES: string[] = process.env.UPLOAD_DISALLO
  */
 export interface Config {
     port: number;
-    host: string;
     jwtSecret: string;
     filesDir: string;
     databasePath: string;
@@ -102,12 +103,14 @@ export interface Config {
 
 export const config: Config = {
     port: PORT,
-    host: HOST,
     jwtSecret: JWT_SECRET,
     filesDir: FILES_DIR,
     databasePath: DATABASE_PATH,
     uploadMaxFileSize: UPLOAD_MAX_FILE_SIZE,
     uploadDisallowedMimeTypes: UPLOAD_DISALLOWED_MIME_TYPES,
 };
+
+// Export HOST for internal server startup
+export { HOST };
 
 export default config;
