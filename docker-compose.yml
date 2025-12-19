@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -48,6 +46,7 @@ services:
 
 networks:
   moxbox-network:
+    name: moxbox-network
     driver: bridge
 
 volumes:
