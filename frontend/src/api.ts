@@ -6,35 +6,28 @@
  */
 
 /**
- * Backend server URL (without /api prefix).
+ * Backend server URL construction
+ * ===============================
+ * Frontend automatically derives the backend URL from window.location.hostname
+ * and the port specified in VITE_BACKEND_PORT env var (default: 4200).
+ * 
+ * This allows seamless routing from any address:
+ * - localhost:5173 → backend at localhost:4200
+ * - 192.168.x.x:5173 → backend at 192.168.x.x:4200
+ * - tailscale-ip:5173 → backend at tailscale-ip:4200
  */
-// Determine backend base URL.
-// Priority:
-// 1) VITE_BACKEND_URL env var (explicit override)
-// 2) Derive from the current frontend location (same hostname) and VITE_BACKEND_PORT (defaults to 4200)
-// 3) Fallback to localhost:4200 (for environments where window is not available)
-// Optional flag to prefer a derived backend host built from the current frontend
-// host (window.location.hostname). When `true`, the frontend will replace
-// `VITE_BACKEND_URL` with a derived host so requests go back to the same host
-// the frontend was accessed from — useful for multi-interface/dev setups
-// (e.g., local LAN IP vs Tailscale IP).
-const envUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
 const envPort = import.meta.env.VITE_BACKEND_PORT as string | undefined;
-const useDerivedHost = (import.meta.env.VITE_BACKEND_USE_DERIVED_HOST || 'false') === 'true';
-const defaultPort = envPort || '4200';
-const derivedUrl = typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.hostname}:${defaultPort}`
-    : `http://localhost:${defaultPort}`;
+const backendPort = envPort || '4200';
+const backendUrl = typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:${backendPort}`
+    : `http://localhost:${backendPort}`;
 
-// If the user explicitly wants a derived host, prefer that over the env URL.
-// Otherwise, fall back to envUrl when defined.
-export const API_BASE_URL = useDerivedHost ? derivedUrl : (envUrl || derivedUrl);
+export const API_BASE_URL = backendUrl;
 
 /**
- * API route prefix used by the backend.
- * Set VITE_API_PREFIX in .env to override if backend uses different prefix.
+ * API route prefix
  */
-export const API_PREFIX = import.meta.env.VITE_API_PREFIX || '/api';
+export const API_PREFIX = '/api';
 
 /**
  * Builds a complete API URL from an endpoint path.
