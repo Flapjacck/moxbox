@@ -3,6 +3,7 @@ import path from 'path';
 import { listUsers, createUser } from '../models/users';
 import { hashPassword } from './passwordHash';
 import { info, error } from './logger';
+import { DATABASE_PATH } from '../config/env';
 
 /**
  * generateTempPassword()
@@ -40,9 +41,9 @@ export async function initializeFirstUser(): Promise<void> {
         isAdmin: true,
     });
 
-    // Save password to root directory
-    const projectRoot = process.cwd();
-    const passwordFile = path.join(projectRoot, 'LOGIN.txt');
+    // Save password to data directory (same location as database)
+    const dataDir = path.dirname(DATABASE_PATH);
+    const passwordFile = path.join(dataDir, 'LOGIN.txt');
     const content = `Initial admin credentials:\nusername=admin\npassword=${tempPassword}\n\nPlease change password after first login.`;
 
     fs.writeFileSync(passwordFile, content, 'utf-8');
