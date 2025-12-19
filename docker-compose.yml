@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: moxbox-backend
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:4200:4200"
+    environment:
+      # Server Configuration
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=4200
+      - FRONTEND_PORT=80
+
+      # Security
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+
+      # Storage Paths (inside container)
+      - DATABASE_PATH=/app/data/db.sqlite
+      - FILES_DIR=/app/data/files
+
+      # Upload Configuration
+      - UPLOAD_MAX_FILE_SIZE=${UPLOAD_MAX_FILE_SIZE:-1gb}
+      - UPLOAD_DISALLOWED_MIME_TYPES=${UPLOAD_DISALLOWED_MIME_TYPES:-text/html,application/javascript,text/javascript,application/x-msdownload,application/x-msdos-program,application/x-sh,application/x-bash,application/x-php}
+    volumes:
+      # Mount host data directory to container /app/data
+      # Change './moxbox_data' to your desired path (e.g., '/path/to/your/data')
+      - ${DATA_DIR:-./moxbox_data}:/app/data
+    networks:
+      - moxbox-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: moxbox-frontend
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:5173:80"
+    depends_on:
+      - backend
+    networks:
+      - moxbox-network
+
+networks:
+  moxbox-network:
+    driver: bridge
+
+volumes:
+  moxbox_data:
+    driver: local
