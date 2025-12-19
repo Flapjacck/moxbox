@@ -22,8 +22,14 @@ services:
       - FILES_DIR=/app/data/files
 
       # Upload Configuration
+      # UPLOAD_MAX_FILE_SIZE: Maximum file size allowed for uploads
+      # Examples: 500mb, 2gb, 1024mb
       - UPLOAD_MAX_FILE_SIZE=${UPLOAD_MAX_FILE_SIZE:-1gb}
-      - UPLOAD_DISALLOWED_MIME_TYPES=${UPLOAD_DISALLOWED_MIME_TYPES:-text/html,application/javascript,text/javascript,application/x-msdownload,application/x-msdos-program,application/x-sh,application/x-bash,application/x-php}
+
+      # UPLOAD_DISALLOWED_MIME_TYPES: Comma-separated list of MIME types to block from uploads
+      #   To disallow specific types, uncomment and customize the example below:
+      #   - UPLOAD_DISALLOWED_MIME_TYPES=text/html,application/javascript,application/x-executable
+      - UPLOAD_DISALLOWED_MIME_TYPES=${UPLOAD_DISALLOWED_MIME_TYPES:-}
     volumes:
       # Mount host data directory to container /app/data
       # Change './data' to your desired path (e.g., '/path/to/your/data')
