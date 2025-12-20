@@ -72,7 +72,7 @@ export const FolderCard: FC<FolderCardProps> = ({
                 )}
 
                 {/* Actions (show on hover) */}
-                <div className="mt-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="mt-2 flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     {onRename && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onRename(path); }}
@@ -121,7 +121,7 @@ export const FolderCard: FC<FolderCardProps> = ({
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                 {onRename && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onRename(path); }}
