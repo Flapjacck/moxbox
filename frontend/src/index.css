@@ -19,6 +19,12 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* Disable GPU acceleration for animations to prevent rendering artifacts */
+* {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
 .space-grotesk-regular {
     font-family: "Space Grotesk", sans-serif;
     font-optical-sizing: auto;
