@@ -76,9 +76,9 @@ export const Trash = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0D1117] p-6 text-slate-200">
+    <div className="min-h-screen bg-[#0D1117] p-4 sm:p-6 text-slate-200">
       {/* Page header */}
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <button
             onClick={() => {
@@ -94,7 +94,7 @@ export const Trash = () => {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
             <Trash2 className="w-6 h-6" />
             Trash
           </h1>
@@ -102,7 +102,7 @@ export const Trash = () => {
         {trashedFiles.length > 0 && (
           <button
             onClick={() => setShowConfirm(true)}
-            className="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+            className="px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm w-full sm:w-auto"
           >
             Empty Trash
           </button>
@@ -152,30 +152,30 @@ export const Trash = () => {
       )}
 
       {/* Simple toolbar */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
         <input
           placeholder="Search trash"
           value={pattern}
           onChange={(e) => setPattern(e.target.value)}
-          className="bg-[#0B1220] border border-[#22262b] px-3 py-1 rounded text-slate-100 w-64"
+          className="bg-[#0B1220] border border-[#22262b] px-3 py-1 rounded text-slate-100 flex-1 sm:w-64"
         />
         <button
           onClick={() => fetchTrashedFiles()}
-          className="px-3 py-1 rounded bg-[#0f1724] text-slate-400"
+          className="px-3 py-1 rounded bg-[#0f1724] text-slate-400 shrink-0"
         >
           Refresh
         </button>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
           <span className="text-sm text-slate-400">{filteredFiles.length} files</span>
           <button
             onClick={() => setView('list')}
-            className={`p-2 rounded ${view === 'list' ? 'bg-[#111827]' : 'bg-transparent'}`}
+            className={`p-2 rounded text-sm shrink-0 ${view === 'list' ? 'bg-[#111827]' : 'bg-transparent'}`}
           >
             List
           </button>
           <button
             onClick={() => setView('grid')}
-            className={`p-2 rounded ${view === 'grid' ? 'bg-[#111827]' : 'bg-transparent'}`}
+            className={`p-2 rounded text-sm shrink-0 ${view === 'grid' ? 'bg-[#111827]' : 'bg-transparent'}`}
           >
             Grid
           </button>

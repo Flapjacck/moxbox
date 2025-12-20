@@ -42,47 +42,49 @@ export const FileCardList: FC<FileCardListInternalProps> = ({
 
   return (
     <motion.div
-      className={`${base} p-4 flex items-center gap-4 ${className} ${isDeleted ? 'opacity-70' : ''}`}
+      className={`${base} p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 ${className} ${isDeleted ? 'opacity-70' : ''}`}
       whileHover={{}}
       transition={{ duration: 0.12 }}
     >
-      {/* File icon */}
-      <div className="w-12 h-12 flex items-center justify-center rounded-md bg-[#0F1724] shrink-0">
-        <FileIcon type={fileType} />
-      </div>
-
-      {/* File info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-3 mb-2">
-          <div className="font-semibold text-sm truncate text-[#F0F6FC]" title={file.originalName}>
-            {file.originalName}
-          </div>
-          <div className="text-xs text-[#6B7280] shrink-0">
-            {file.size ? formatFileSize(file.size) : '—'}
-          </div>
+      {/* File icon and Info */}
+      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+        <div className="w-10 sm:w-12 h-10 sm:h-12 flex items-center justify-center rounded-md bg-[#0F1724] shrink-0">
+          <FileIcon type={fileType} />
         </div>
-        {/* Show folder/dir path when file is in Trash to disambiguate similarly-named files */}
-        {isDeleted && (
-          <div
-            className="text-xs text-[#6B7280] mb-1 truncate"
-            title={
-              file.storagePath?.split('/').slice(0, -1).join('/')
-                ? `{root}/${file.storagePath?.split('/').slice(0, -1).join('/')}`
-                : '{root}'
-            }
-          >
-            {file.storagePath?.split('/').slice(0, -1).join('/')
-              ? `{root}/${file.storagePath?.split('/').slice(0, -1).join('/')}`
-              : '{root}'}
+
+        {/* File info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 sm:gap-3 mb-2 flex-wrap">
+            <div className="font-semibold text-xs sm:text-sm truncate text-[#F0F6FC]" title={file.originalName}>
+              {file.originalName}
+            </div>
+            <div className="text-xs text-[#6B7280] shrink-0">
+              {file.size ? formatFileSize(file.size) : '—'}
+            </div>
           </div>
-        )}
-        <div className="text-xs text-[#6B7280]">
-          {formatDate(file.createdAt)}
+          {/* Show folder/dir path when file is in Trash to disambiguate similarly-named files */}
+          {isDeleted && (
+            <div
+              className="text-xs text-[#6B7280] mb-1 truncate"
+              title={
+                file.storagePath?.split('/').slice(0, -1).join('/')
+                  ? `{root}/${file.storagePath?.split('/').slice(0, -1).join('/')}`
+                  : '{root}'
+              }
+            >
+              {file.storagePath?.split('/').slice(0, -1).join('/')
+                ? `{root}/${file.storagePath?.split('/').slice(0, -1).join('/')}`
+                : '{root}'}
+            </div>
+          )}
+          <div className="text-xs text-[#6B7280]">
+            {formatDate(file.createdAt)}
+          </div>
         </div>
       </div>
 
       {/* Action buttons */}
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1 shrink-0 justify-end w-full sm:w-auto">
         {isDeleted ? (
           // Trash view actions
           <>
