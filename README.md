@@ -84,7 +84,15 @@ Got Proxmox running on it pretty quickly, which was surprising. Usually anything
 
 ### Size Comparision: M900 vs N3ds XL vs Bic Lighter vs Pokemon Card
 
-<img src="https://i.imgur.com/cSpBF9v.jpeg" width="300">
+<img src="https://i.imgur.com/cSpBF9v.jpeg" width="200">
+
+## Screenshots
+
+<p align="center">
+<a href="https://i.imgur.com/SOjewx9.png" target="_blank" rel="noopener noreferrer"><img src="https://i.imgur.com/SOjewx9.png" alt="Auth Page" width="360" style="margin:6px" /></a>
+<a href="https://i.imgur.com/A7Clr5i.png" target="_blank" rel="noopener noreferrer"><img src="https://i.imgur.com/A7Clr5i.png" alt="File Dashboard" width="360" style="margin:6px" /></a>
+<a href="https://i.imgur.com/gKcN0zM.png" target="_blank" rel="noopener noreferrer"><img src="https://i.imgur.com/gKcN0zM.png" alt="Trash Page" width="360" style="margin:6px" /></a>
+</p>
 
 ## Open Source & Contributions
 
