@@ -62,11 +62,11 @@ docker-compose down && docker-compose up -d --build
 docker-compose down -v && rm -rf data
 ```
 
-All data is stored in the `moxbox_data` directory within the project folder:
+All data is stored in the `data` directory within the project folder:
 
-- `moxbox_data/db.sqlite` - Database
-- `moxbox_data/LOGIN.txt` - Initial admin credentials
-- `moxbox_data/files/` - Uploaded files
+- `data/db.sqlite` - Database
+- `data/LOGIN.txt` - Initial admin credentials
+- `data/files/` - Uploaded files
 
 To use a custom path, set the `DATA_DIR` environment variable within the `docker-compose.yml` file.
 
@@ -97,3 +97,4 @@ Got Proxmox running on it pretty quickly, which was surprising. Usually anything
 ## Open Source & Contributions
 
 I’m more than happy for anyone to contribute, improve features, report issues, or build on top of it. Whether you're fixing a typo or adding a major feature, all contributions are welcome.
+
